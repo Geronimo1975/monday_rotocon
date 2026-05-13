@@ -4,7 +4,7 @@
 |---|---|
 | Date | 2026-05-13 |
 | Author | George Sebastian Cucuiet (via Claude brainstorming) |
-| Status | **APPROVED** (pending final read-through by George) |
+| Status | **APPROVED** (2026-05-13) |
 | Relates to | [`docs/superpowers/specs/2026-05-10-monday-core-skeleton-design.md`](2026-05-10-monday-core-skeleton-design.md) (sub-project A) |
 | Implements | The concrete consumer for sub-project A's "CEO Dashboard V1" deliverable (§10 acceptance criterion 3 of A's spec). Roadmap month: M1. |
 | Successor specs | A future *Sub-project B* spec will cover Phases 1b/1c/1d (real-time webhooks, two-way edits, Q&E ERP integration). Not authored yet. |
@@ -374,10 +374,10 @@ These don't gate Phase 1a, but should be captured so they aren't forgotten when 
 
 ## Approval
 
-Status: **APPROVED** (pending George's final read-through).
+Status: **APPROVED**.
 
 | Reviewer | Decision | Date | Notes |
 |---|---|---|---|
-| George S. Cucuiet | ⏳ Pending | 2026-05-13 | Path 1 chosen; Q1/Q2/Q7 deferred to sub-project B; Q3/Q4/Q6 resolved inline; Q5 stack provisionally stack-agnostic |
+| George S. Cucuiet | ✅ Approved | 2026-05-13 | Path 1 chosen; Q1/Q2/Q7 deferred to sub-project B; Q3/Q4/Q6 resolved inline; Q5 stack provisionally stack-agnostic |
 
-Next step after George's OK: invoke `superpowers:writing-plans` to author the implementation plan.
+Next step: invoke `superpowers:writing-plans` to author the implementation plan.
