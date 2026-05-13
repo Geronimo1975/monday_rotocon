@@ -38,3 +38,4 @@ tmp/
 uv.lock
 .coverage
 htmlcov/
+out/
