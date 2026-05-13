@@ -163,7 +163,31 @@ def main() -> int:
 
     print(f"\n🎉 Done. {len(missing)} column(s) created.")
     print(f"   Board URL: https://{ACCOUNT_SLUG}.monday.com/boards/{BOARD_ID}")
+    print_view_setup_instructions()
     return 0
+
+
+def print_view_setup_instructions() -> None:
+    """View creation is manual via monday UI. Print the instructions."""
+    print()
+    print("📋 NEXT — create board views manually (monday UI):")
+    print()
+    print(f"   1. Open https://{ACCOUNT_SLUG}.monday.com/boards/{BOARD_ID}")
+    print("   2. Click '+ Add view' in the top-right.")
+    print()
+    print("   View 1: 'Roadmap (Gantt)'")
+    print("     - Type: Gantt")
+    print("     - Date column: Timeline")
+    print("     - Filter: Phase in {M1, M2, M3, M4, M5, M6}")
+    print()
+    print("   View 2: 'Table (full)'")
+    print("     - Type: Table")
+    print("     - All columns visible, default sort by Timeline.start")
+    print()
+    print("   View 3: 'KPI Cards'")
+    print("     - Type: Cards")
+    print("     - Filter: Phase = Ongoing")
+    print()
 
 
 if __name__ == "__main__":
