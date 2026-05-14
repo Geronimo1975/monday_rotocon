@@ -1,4 +1,4 @@
-from monday_rotocon.models import Board, Column, ColumnValue, Item
+from monday_rotocon.models import Board, ColumnValue, Item
 
 
 def test_board_parses_minimal():
