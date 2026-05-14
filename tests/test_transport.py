@@ -44,3 +44,25 @@ def test_client_gives_up_after_max_retries():
         client = MondayClient(api_token="t", max_retries=2, backoff_base=0)
         with pytest.raises(MondayAPIError, match="503"):
             client.execute("q", variables={})
+
+
+def test_client_retries_on_network_error_then_succeeds():
+    with respx.mock(base_url="https://api.monday.com") as router:
+        route = router.post("/v2").mock(
+            side_effect=[
+                httpx.ConnectError("simulated"),
+                httpx.Response(200, json={"data": {"ok": True}}),
+            ]
+        )
+        client = MondayClient(api_token="t", max_retries=2, backoff_base=0)
+        result = client.execute("q", variables={})
+        assert result == {"ok": True}
+        assert route.call_count == 2
+
+
+def test_client_wraps_network_error_after_retries():
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").mock(side_effect=httpx.ReadTimeout("slow"))
+        client = MondayClient(api_token="t", max_retries=1, backoff_base=0)
+        with pytest.raises(MondayAPIError, match="network error"):
+            client.execute("q", variables={})

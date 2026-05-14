@@ -68,7 +68,15 @@ class MondayClient:
         """
         payload = {"query": query, "variables": variables}
         for attempt in range(self._max_retries + 1):
-            response = self._client.post("/v2", json=payload)
+            try:
+                response = self._client.post("/v2", json=payload)
+            except httpx.TransportError as exc:
+                if attempt < self._max_retries:
+                    time.sleep(self._backoff_base * (2**attempt))
+                    continue
+                raise MondayAPIError(
+                    f"network error after {self._max_retries} retries: {exc!r}"
+                ) from exc
             if response.status_code in (429, 500, 502, 503, 504):
                 if attempt < self._max_retries:
                     time.sleep(self._backoff_base * (2**attempt))
