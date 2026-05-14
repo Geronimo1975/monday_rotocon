@@ -4,6 +4,7 @@
 The script lives outside the package; we import it via sys.path
 gymnastics so pytest can exercise the pure functions inside.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -12,9 +13,7 @@ from pathlib import Path
 import pytest
 
 SCRIPT_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "scripts"
-    / "extend_ki_integration_columns.py"
+    Path(__file__).resolve().parent.parent.parent / "scripts" / "extend_ki_integration_columns.py"
 )
 
 

@@ -18,9 +18,7 @@ def test_client_sends_auth_header():
 
 def test_client_raises_on_graphql_error():
     with respx.mock(base_url="https://api.monday.com") as router:
-        router.post("/v2").respond(
-            json={"errors": [{"message": "Unauthorized"}]}, status_code=200
-        )
+        router.post("/v2").respond(json={"errors": [{"message": "Unauthorized"}]}, status_code=200)
         client = MondayClient(api_token="bad-token")
         with pytest.raises(MondayAPIError, match="Unauthorized"):
             client.execute("{ me { id } }", variables={})

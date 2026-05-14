@@ -54,7 +54,7 @@ class MondayClient:
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "MondayClient":
+    def __enter__(self) -> MondayClient:
         return self
 
     def __exit__(self, *_exc: object) -> None:
@@ -74,18 +74,18 @@ class MondayClient:
                     time.sleep(self._backoff_base * (2**attempt))
                     continue
                 raise MondayAPIError(
-                    f"monday.com responded {response.status_code} after "
-                    f"{self._max_retries} retries"
+                    f"monday.com responded {response.status_code} after {self._max_retries} retries"
                 )
             if response.status_code != 200:
                 raise MondayAPIError(
                     f"monday.com responded {response.status_code}: {response.text[:200]}"
                 )
-            body = response.json()
+            body: dict[str, Any] = response.json()
             if "errors" in body:
                 msgs = "; ".join(err.get("message", "?") for err in body["errors"])
                 raise MondayAPIError(msgs)
-            return body.get("data", {})
+            result: dict[str, Any] = body.get("data", {})
+            return result
         raise MondayAPIError("unreachable")
 
     def boards(self, *, ids: list[str]) -> Iterator[Board]:
@@ -94,9 +94,7 @@ class MondayClient:
         for raw in data.get("boards") or []:
             yield Board.model_validate(raw)
 
-    def items_for_board(
-        self, *, board_id: str, page_size: int = 100
-    ) -> Iterator[Item]:
+    def items_for_board(self, *, board_id: str, page_size: int = 100) -> Iterator[Item]:
         """Fetch all items for a board, paginating through cursor."""
         data = self.execute(
             Q_ITEMS_PAGE,

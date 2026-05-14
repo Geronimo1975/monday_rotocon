@@ -1,6 +1,6 @@
 [project]
 name = "monday-rotocon"
-version = "0.1.0"
+version = "0.2.0"
 description = "Typed monday.com client + dashboard export CLI for ROTOCON Europe GmbH"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -1,7 +1,7 @@
 import httpx
 import respx
 
-from monday_rotocon.transport import MondayClient
+from monday_rotocon import MondayClient
 
 
 def test_boards_returns_typed_list():
@@ -13,7 +13,12 @@ def test_boards_returns_typed_list():
                     "name": "Sales Pipeline",
                     "workspace_id": "100",
                     "columns": [
-                        {"id": "status_1", "title": "Status", "type": "status", "settings_str": "{}"},
+                        {
+                            "id": "status_1",
+                            "title": "Status",
+                            "type": "status",
+                            "settings_str": "{}",
+                        },
                     ],
                 },
             ]
@@ -31,17 +36,23 @@ def test_boards_returns_typed_list():
 def test_items_for_board_paginates_through_cursor():
     page1 = {
         "data": {
-            "boards": [{
-                "items_page": {
-                    "cursor": "next-cursor",
-                    "items": [
-                        {"id": "1", "name": "Lead A", "state": "active",
-                         "created_at": "2026-05-01T10:00:00Z",
-                         "updated_at": "2026-05-02T10:00:00Z",
-                         "column_values": []},
-                    ],
+            "boards": [
+                {
+                    "items_page": {
+                        "cursor": "next-cursor",
+                        "items": [
+                            {
+                                "id": "1",
+                                "name": "Lead A",
+                                "state": "active",
+                                "created_at": "2026-05-01T10:00:00Z",
+                                "updated_at": "2026-05-02T10:00:00Z",
+                                "column_values": [],
+                            },
+                        ],
+                    }
                 }
-            }]
+            ]
         }
     }
     page2 = {
@@ -49,10 +60,14 @@ def test_items_for_board_paginates_through_cursor():
             "next_items_page": {
                 "cursor": None,
                 "items": [
-                    {"id": "2", "name": "Lead B", "state": "active",
-                     "created_at": "2026-05-01T10:00:00Z",
-                     "updated_at": "2026-05-02T10:00:00Z",
-                     "column_values": []},
+                    {
+                        "id": "2",
+                        "name": "Lead B",
+                        "state": "active",
+                        "created_at": "2026-05-01T10:00:00Z",
+                        "updated_at": "2026-05-02T10:00:00Z",
+                        "column_values": [],
+                    },
                 ],
             }
         }
