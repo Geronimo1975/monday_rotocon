@@ -6,6 +6,7 @@ keeps no global state — instantiate per use.
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Iterator
 from typing import Any
@@ -13,6 +14,7 @@ from typing import Any
 import httpx
 
 from monday_rotocon.models import Board, Item
+from monday_rotocon.mutations import M_CHANGE_VALUES, M_CREATE_ITEM
 from monday_rotocon.queries import Q_BOARDS, Q_ITEMS_PAGE, Q_NEXT_ITEMS_PAGE
 
 DEFAULT_BASE_URL = "https://api.monday.com"
@@ -125,3 +127,47 @@ class MondayClient:
             for raw in page.get("items") or []:
                 yield Item.model_validate(raw)
             cursor = page.get("cursor")
+
+    def create_item(
+        self,
+        *,
+        board_id: str,
+        name: str,
+        column_values: dict[str, str] | None = None,
+    ) -> Item:
+        """Create a new item in a board. Returns the typed Item.
+
+        column_values is a dict of column_id -> simple string value (status
+        label, plain text, etc.). monday's API also accepts "name" as a
+        key here, though using the dedicated item_name argument is clearer.
+        """
+        variables: dict[str, Any] = {
+            "board_id": board_id,
+            "item_name": name,
+            "column_values": json.dumps(column_values) if column_values else None,
+        }
+        data = self.execute(M_CREATE_ITEM, variables=variables)
+        raw = data.get("create_item") or {}
+        return Item.model_validate(raw)
+
+    def change_values(
+        self,
+        *,
+        item_id: str,
+        board_id: str,
+        column_values: dict[str, str],
+    ) -> Item:
+        """Change one or more column values in a single mutation.
+
+        Pass {"name": "..."} to rename, {"<status_col_id>": "Done"} for
+        status, {"<text_col_id>": "..."} for text. monday resolves status
+        labels server-side; an unknown label raises MondayAPIError.
+        """
+        variables: dict[str, Any] = {
+            "item_id": item_id,
+            "board_id": board_id,
+            "column_values": json.dumps(column_values),
+        }
+        data = self.execute(M_CHANGE_VALUES, variables=variables)
+        raw = data.get("change_multiple_column_values") or {}
+        return Item.model_validate(raw)
