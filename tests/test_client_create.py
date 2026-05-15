@@ -41,7 +41,9 @@ def test_create_item_omits_column_values_when_none():
     data = {
         "data": {
             "create_item": {
-                "id": "1", "name": "x", "state": "active",
+                "id": "1",
+                "name": "x",
+                "state": "active",
                 "created_at": "2026-05-15T10:00:00Z",
                 "updated_at": "2026-05-15T10:00:00Z",
                 "column_values": [],

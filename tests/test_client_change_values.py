@@ -37,11 +37,11 @@ def test_change_values_returns_refreshed_item():
 
 def test_change_values_raises_on_graphql_error():
     with respx.mock(base_url="https://api.monday.com") as router:
-        router.post("/v2").respond(
-            json={"errors": [{"message": "Invalid column value"}]}
-        )
+        router.post("/v2").respond(json={"errors": [{"message": "Invalid column value"}]})
         client = MondayClient(api_token="t")
         with pytest.raises(MondayAPIError, match="Invalid column value"):
             client.change_values(
-                item_id="1", board_id="1", column_values={"x": "y"},
+                item_id="1",
+                board_id="1",
+                column_values={"x": "y"},
             )
