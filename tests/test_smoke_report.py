@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
+import httpx
 import pytest
 from smoke_ki_integration_report import ReportData
 
@@ -174,13 +175,18 @@ def test_post_to_n8n_success_returns_response_json(monkeypatch) -> None:
 
     monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda _seconds: None)
 
-    payload = {"subject": "hi", "recipient": "a@b.c", "html_body": "<p>hi</p>",
-               "markdown_attachment": {"filename": "x.md", "content_base64": "aGk=",
-                                       "mime_type": "text/markdown"}}
+    payload = {
+        "subject": "hi",
+        "recipient": "a@b.c",
+        "html_body": "<p>hi</p>",
+        "markdown_attachment": {
+            "filename": "x.md",
+            "content_base64": "aGk=",
+            "mime_type": "text/markdown",
+        },
+    }
     with respx.mock(base_url="https://n8n.example") as router:
-        router.post("/webhook/x").respond(
-            200, json={"status": "sent", "messageId": "msg-1"}
-        )
+        router.post("/webhook/x").respond(200, json={"status": "sent", "messageId": "msg-1"})
         result = post_to_n8n(
             url="https://n8n.example/webhook/x",
             token="secret",
@@ -197,13 +203,18 @@ def test_post_to_n8n_retries_three_times_on_transport_error(monkeypatch) -> None
     sleeps: list[float] = []
     monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda s: sleeps.append(s))
 
-    payload = {"subject": "x", "recipient": "a@b.c", "html_body": "x",
-               "markdown_attachment": {"filename": "x.md", "content_base64": "aA==",
-                                       "mime_type": "text/markdown"}}
+    payload = {
+        "subject": "x",
+        "recipient": "a@b.c",
+        "html_body": "x",
+        "markdown_attachment": {
+            "filename": "x.md",
+            "content_base64": "aA==",
+            "mime_type": "text/markdown",
+        },
+    }
     with respx.mock(base_url="https://n8n.example") as router:
-        route = router.post("/webhook/x").mock(
-            side_effect=httpx.ConnectError("boom")
-        )
+        route = router.post("/webhook/x").mock(side_effect=httpx.ConnectError("boom"))
         with pytest.raises(N8nWebhookError):
             post_to_n8n(
                 url="https://n8n.example/webhook/x",
@@ -220,9 +231,16 @@ def test_post_to_n8n_raises_on_non_2xx(monkeypatch) -> None:
 
     monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda _s: None)
 
-    payload = {"subject": "x", "recipient": "a@b.c", "html_body": "x",
-               "markdown_attachment": {"filename": "x.md", "content_base64": "aA==",
-                                       "mime_type": "text/markdown"}}
+    payload = {
+        "subject": "x",
+        "recipient": "a@b.c",
+        "html_body": "x",
+        "markdown_attachment": {
+            "filename": "x.md",
+            "content_base64": "aA==",
+            "mime_type": "text/markdown",
+        },
+    }
     with respx.mock(base_url="https://n8n.example") as router:
         router.post("/webhook/x").respond(500, text="boom")
         with pytest.raises(N8nWebhookError) as excinfo:
@@ -232,3 +250,110 @@ def test_post_to_n8n_raises_on_non_2xx(monkeypatch) -> None:
                 payload=payload,
             )
         assert "500" in str(excinfo.value)
+
+
+def test_find_board_by_name_returns_matching_board() -> None:
+    import respx
+    from smoke_ki_integration_report import find_board_by_name
+
+    from monday_rotocon import MondayClient
+
+    data = {
+        "data": {
+            "boards": [
+                {"id": "111", "name": "KI Integration", "workspace_id": "5528271", "columns": []},
+            ]
+        }
+    }
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").respond(json=data)
+        client = MondayClient(api_token="t")
+        board = find_board_by_name(client, name="KI Integration", workspace_id="5528271")
+        assert board.id == "111"
+
+
+def test_find_board_by_name_raises_when_missing() -> None:
+    import respx
+    from smoke_ki_integration_report import BoardNotFoundError, find_board_by_name
+
+    from monday_rotocon import MondayClient
+
+    data = {
+        "data": {
+            "boards": [
+                {"id": "999", "name": "Other Board", "workspace_id": "5528271", "columns": []},
+            ]
+        }
+    }
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").respond(json=data)
+        client = MondayClient(api_token="t")
+        with pytest.raises(BoardNotFoundError) as excinfo:
+            find_board_by_name(client, name="KI Integration", workspace_id="5528271")
+        assert "KI Integration" in str(excinfo.value)
+        assert "Other Board" in str(excinfo.value)  # hint shown
+
+
+def test_main_dry_run_writes_markdown_and_skips_webhook(monkeypatch, tmp_path) -> None:
+    import respx
+
+    monkeypatch.setenv("MONDAY_API_TOKEN", "t")
+    monkeypatch.setenv("N8N_WEBHOOK_URL", "https://n8n.example/webhook/x")
+    monkeypatch.setenv("N8N_WEBHOOK_TOKEN", "secret")
+    monkeypatch.setenv("REPORT_RECIPIENT", "a@b.c")
+    monkeypatch.chdir(tmp_path)
+
+    boards_data = {
+        "data": {
+            "boards": [
+                {"id": "111", "name": "KI Integration", "workspace_id": "5528271", "columns": []},
+            ]
+        }
+    }
+    items_data = {
+        "data": {
+            "boards": [
+                {
+                    "items_page": {
+                        "cursor": None,
+                        "items": [
+                            {
+                                "id": "1",
+                                "name": "A",
+                                "state": "active",
+                                "group": {"id": "g1", "title": "Onboarding (Tag 1)"},
+                                "column_values": [],
+                            },
+                            {
+                                "id": "2",
+                                "name": "B",
+                                "state": "active",
+                                "group": {"id": "g1", "title": "Onboarding (Tag 1)"},
+                                "column_values": [],
+                            },
+                        ],
+                    }
+                }
+            ]
+        }
+    }
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").mock(
+            side_effect=[
+                httpx.Response(200, json=boards_data),
+                httpx.Response(200, json=items_data),
+            ]
+        )
+        import sys
+
+        from smoke_ki_integration_report import main
+
+        monkeypatch.setattr(sys, "argv", ["smoke", "--dry-run"])
+        exit_code = main()
+        assert exit_code == 0
+
+    reports = list((tmp_path / "reports").glob("*.md"))
+    assert len(reports) == 1
+    content = reports[0].read_text(encoding="utf-8")
+    assert "KI Integration" in content
+    assert "Onboarding (Tag 1)" in content
