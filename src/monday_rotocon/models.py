@@ -25,6 +25,13 @@ class ColumnValue(BaseModel):
     text: str | None = None
 
 
+class Group(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    id: str
+    title: str
+
+
 class Item(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
@@ -34,6 +41,7 @@ class Item(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     column_values: list[ColumnValue] = Field(default_factory=list)
+    group: Group | None = None
 
 
 class Board(BaseModel):

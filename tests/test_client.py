@@ -47,6 +47,7 @@ def test_items_for_board_paginates_through_cursor():
                                 "state": "active",
                                 "created_at": "2026-05-01T10:00:00Z",
                                 "updated_at": "2026-05-02T10:00:00Z",
+                                "group": {"id": "topics", "title": "Onboarding (Tag 1)"},
                                 "column_values": [],
                             },
                         ],
@@ -66,6 +67,7 @@ def test_items_for_board_paginates_through_cursor():
                         "state": "active",
                         "created_at": "2026-05-01T10:00:00Z",
                         "updated_at": "2026-05-02T10:00:00Z",
+                        "group": {"id": "topics", "title": "Onboarding (Tag 1)"},
                         "column_values": [],
                     },
                 ],
@@ -83,3 +85,5 @@ def test_items_for_board_paginates_through_cursor():
         items = list(client.items_for_board(board_id="12345", page_size=1))
         assert [i.id for i in items] == ["1", "2"]
         assert route.call_count == 2
+        assert all(i.group is not None for i in items)
+        assert items[0].group.title == "Onboarding (Tag 1)"

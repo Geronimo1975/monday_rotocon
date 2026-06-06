@@ -53,3 +53,32 @@ def test_item_unknown_state_falls_back():
     raw = {"id": "1", "name": "x", "state": "weird_state", "column_values": []}
     item = Item.model_validate(raw)
     assert item.state == "weird_state"  # we accept any string; mapping decides
+
+
+def test_group_model_parses_id_and_title():
+    from monday_rotocon import Group
+
+    g = Group.model_validate({"id": "topics", "title": "Onboarding (Tag 1)"})
+    assert g.id == "topics"
+    assert g.title == "Onboarding (Tag 1)"
+
+
+def test_item_group_field_optional_and_parses_when_present():
+    from monday_rotocon import Item
+
+    item_no_group = Item.model_validate(
+        {"id": "1", "name": "x", "state": "active", "column_values": []}
+    )
+    assert item_no_group.group is None
+
+    item_with_group = Item.model_validate(
+        {
+            "id": "2",
+            "name": "y",
+            "state": "active",
+            "column_values": [],
+            "group": {"id": "topics", "title": "Onboarding (Tag 1)"},
+        }
+    )
+    assert item_with_group.group is not None
+    assert item_with_group.group.title == "Onboarding (Tag 1)"

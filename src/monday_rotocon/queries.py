@@ -30,6 +30,10 @@ query ItemsPage($board_id: ID!, $limit: Int!, $cursor: String) {
         state
         created_at
         updated_at
+        group {
+          id
+          title
+        }
         column_values {
           id
           type
@@ -52,6 +56,10 @@ query NextItemsPage($cursor: String!, $limit: Int!) {
       state
       created_at
       updated_at
+      group {
+        id
+        title
+      }
       column_values {
         id
         type
