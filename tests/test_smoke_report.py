@@ -110,3 +110,35 @@ def test_render_markdown_table_has_total_row_with_correct_sum() -> None:
 
     md = render_markdown(_sample_report())
     assert "| **Total** | **5** | **100%** |" in md
+
+
+def test_quickchart_url_encodes_horizontal_bar_with_group_counts() -> None:
+    import json
+    from urllib.parse import parse_qs, urlparse
+
+    from smoke_ki_integration_report import quickchart_url
+
+    url = quickchart_url([("A", 3), ("B", 2)])
+    parsed = urlparse(url)
+    assert parsed.netloc == "quickchart.io"
+    assert parsed.path == "/chart"
+    qs = parse_qs(parsed.query)
+    config = json.loads(qs["c"][0])
+    assert config["type"] == "horizontalBar"
+    assert config["data"]["labels"] == ["A", "B"]
+    assert config["data"]["datasets"][0]["data"] == [3, 2]
+    assert qs["w"] == ["600"]
+    assert qs["h"] == ["300"]
+
+
+def test_render_html_contains_table_with_totals_and_quickchart_img() -> None:
+    from smoke_ki_integration_report import render_html
+
+    html = render_html(_sample_report(), recipient="george@rotocon.world")
+    assert "<table" in html
+    assert "<td>Onboarding (Tag 1)</td>" in html or "Onboarding (Tag 1)" in html
+    assert "<strong>Total</strong>" in html
+    assert "<strong>5</strong>" in html
+    assert 'src="https://quickchart.io/chart?' in html
+    assert "monday_rotocon v0.2.1" in html
+    assert "abcdef0123456789" in html

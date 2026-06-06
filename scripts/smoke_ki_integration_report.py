@@ -18,11 +18,14 @@ the library still holds.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
+from html import escape
+from urllib.parse import quote
 
 from monday_rotocon import Item
 
@@ -147,6 +150,80 @@ def render_markdown(report: ReportData) -> str:
     )
 
     return frontmatter + callout + mermaid + table + checklist + footer
+
+
+def quickchart_url(group_counts: list[tuple[str, int]], *, width: int = 600,
+                   height: int = 300) -> str:
+    """Build a QuickChart.io URL rendering a horizontal bar chart."""
+    config = {
+        "type": "horizontalBar",
+        "data": {
+            "labels": [title for title, _ in group_counts],
+            "datasets": [
+                {
+                    "data": [count for _, count in group_counts],
+                    "backgroundColor": "#2563eb",
+                }
+            ],
+        },
+        "options": {
+            "legend": {"display": False},
+            "title": {"display": True, "text": "Itemi per grup"},
+        },
+    }
+    return (
+        "https://quickchart.io/chart"
+        f"?w={width}&h={height}&c={quote(json.dumps(config, separators=(',', ':')))}"
+    )
+
+
+def render_html(report: ReportData, *, recipient: str) -> str:
+    ts = report.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+    chart_src = quickchart_url(report.group_counts)
+    rows_html = "".join(
+        f"<tr><td>{escape(title)}</td>"
+        f"<td style='text-align:right'>{count}</td></tr>"
+        for title, count in report.group_counts
+    )
+    return f"""\
+<!doctype html>
+<html lang="ro">
+<head><meta charset="utf-8"><title>{escape(report.board_name)} — Smoke Test Report</title></head>
+<body style="font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; color:#111; max-width:680px; margin:0 auto; padding:24px;">
+  <header style="background:#f4f4f5; padding:16px 20px; border-radius:8px; margin-bottom:20px;">
+    <h1 style="margin:0 0 6px 0; font-size:20px;">{escape(report.board_name)} — Smoke Test Report</h1>
+    <div style="color:#52525b; font-size:13px;">
+      Board <code>{escape(report.board_id)}</code> · Generated {ts} · {escape(report.client_version)}
+    </div>
+  </header>
+
+  <h2 style="font-size:16px; margin:24px 0 8px 0;">Itemi per grup</h2>
+  <table cellpadding="6" cellspacing="0" border="0"
+         style="border-collapse:collapse; width:100%; border:1px solid #e4e4e7; font-size:14px;">
+    <thead style="background:#fafafa;">
+      <tr><th style="text-align:left">Grup</th><th style="text-align:right">Itemi</th></tr>
+    </thead>
+    <tbody>
+      {rows_html}
+      <tr style="border-top:2px solid #e4e4e7; background:#fafafa;">
+        <td><strong>Total</strong></td>
+        <td style="text-align:right"><strong>{report.total_items}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:24px;">
+    <img src="{chart_src}" alt="Itemi per grup — bar chart"
+         width="600" height="300" style="max-width:100%; height:auto; border:1px solid #e4e4e7; border-radius:6px;">
+  </div>
+
+  <footer style="margin-top:32px; padding-top:12px; border-top:1px solid #e4e4e7; color:#71717a; font-size:12px;">
+    Smoke test rulat de {escape(report.client_version)} · run id <code>{escape(report.run_id)}</code><br>
+    Destinatar: {escape(recipient)}
+  </footer>
+</body>
+</html>
+"""
 
 
 def main() -> int:
