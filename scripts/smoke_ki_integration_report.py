@@ -18,6 +18,7 @@ the library still holds.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
@@ -25,6 +26,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from html import escape
+from typing import TypedDict
 from urllib.parse import quote
 
 from monday_rotocon import Item
@@ -224,6 +226,40 @@ def render_html(report: ReportData, *, recipient: str) -> str:
 </body>
 </html>
 """
+
+
+class MarkdownAttachment(TypedDict):
+    filename: str
+    content_base64: str
+    mime_type: str
+
+
+class WebhookPayload(TypedDict):
+    subject: str
+    recipient: str
+    html_body: str
+    markdown_attachment: MarkdownAttachment
+
+
+def build_payload(
+    *,
+    report: ReportData,
+    recipient: str,
+    markdown: str,
+    html_body: str,
+    markdown_filename: str,
+) -> WebhookPayload:
+    date_only = report.generated_at.strftime("%Y-%m-%d")
+    return WebhookPayload(
+        subject=f"{report.board_name} smoke test — {date_only}",
+        recipient=recipient,
+        html_body=html_body,
+        markdown_attachment=MarkdownAttachment(
+            filename=markdown_filename,
+            content_base64=base64.b64encode(markdown.encode("utf-8")).decode("ascii"),
+            mime_type="text/markdown",
+        ),
+    )
 
 
 def main() -> int:

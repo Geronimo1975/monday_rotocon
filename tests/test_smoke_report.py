@@ -142,3 +142,27 @@ def test_render_html_contains_table_with_totals_and_quickchart_img() -> None:
     assert 'src="https://quickchart.io/chart?' in html
     assert "monday_rotocon v0.2.1" in html
     assert "abcdef0123456789" in html
+
+
+def test_build_payload_roundtrips_markdown_attachment() -> None:
+    import base64
+
+    from smoke_ki_integration_report import build_payload
+
+    report = _sample_report()
+    md = "# hello\nworld"
+    html = "<p>hello</p>"
+    payload = build_payload(
+        report=report,
+        recipient="george@rotocon.world",
+        markdown=md,
+        html_body=html,
+        markdown_filename="2026-06-06-test.md",
+    )
+    assert payload["recipient"] == "george@rotocon.world"
+    assert payload["html_body"] == html
+    assert "KI Integration" in payload["subject"]
+    att = payload["markdown_attachment"]
+    assert att["filename"] == "2026-06-06-test.md"
+    assert att["mime_type"] == "text/markdown"
+    assert base64.b64decode(att["content_base64"]).decode("utf-8") == md
