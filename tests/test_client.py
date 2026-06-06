@@ -86,4 +86,5 @@ def test_items_for_board_paginates_through_cursor():
         assert [i.id for i in items] == ["1", "2"]
         assert route.call_count == 2
         assert all(i.group is not None for i in items)
+        assert items[0].group is not None
         assert items[0].group.title == "Onboarding (Tag 1)"
