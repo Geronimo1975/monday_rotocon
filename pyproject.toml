@@ -36,9 +36,10 @@ packages = ["src/monday_rotocon"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
 addopts = "-ra --strict-markers --strict-config"
 markers = [
-    "integration: tests that hit the real monday.com API (opt-in)",
+    "integration: tests that hit the real monday.com API or n8n webhook (opt-in)",
 ]
 asyncio_mode = "auto"
 

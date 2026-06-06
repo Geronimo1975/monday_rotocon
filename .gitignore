@@ -39,3 +39,6 @@ uv.lock
 .coverage
 htmlcov/
 out/
+
+# Smoke report local copies
+reports/
