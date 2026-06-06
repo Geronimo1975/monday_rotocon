@@ -20,7 +20,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass
+
+from monday_rotocon import Item
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,18 @@ def load_env() -> RequiredEnv:
         print(f"Missing required env: {', '.join(missing)}", file=sys.stderr)
         raise SystemExit(1)
     return RequiredEnv(**values)
+
+
+def group_items_by_title(items: list[Item]) -> list[tuple[str, int]]:
+    """Count items per group title, preserving first-seen order.
+
+    Items without a group are bucketed under "(ungrouped)".
+    """
+    counts: OrderedDict[str, int] = OrderedDict()
+    for item in items:
+        title = item.group.title if item.group is not None else "(ungrouped)"
+        counts[title] = counts.get(title, 0) + 1
+    return list(counts.items())
 
 
 def main() -> int:
