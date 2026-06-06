@@ -8,6 +8,7 @@ exists in the target workspace (archive it manually first to re-run).
 
 Uses only the Python stdlib so it works before `uv sync` has been run.
 """
+
 from __future__ import annotations
 
 import json
@@ -61,7 +62,7 @@ GROUPS_PLAN: dict[str, list[str]] = {
         "Internal Knowledge Base (M4)",
         "Smart Machine Pilot (M5)",
         "Live Machine Data Collection (M5)",
-        "Predictive Maintenance Concept (M5–M6)",
+        "Predictive Maintenance Concept (M5–M6)",  # noqa: RUF001
     ],
 }
 
@@ -120,7 +121,9 @@ def main() -> int:
 
     existing = find_existing_board(token, BOARD_NAME, WORKSPACE_ID)
     if existing is not None:
-        print(f"⚠️  Board '{BOARD_NAME}' already exists (id={existing}) in workspace {WORKSPACE_ID}.")
+        print(
+            f"⚠️  Board '{BOARD_NAME}' already exists (id={existing}) in workspace {WORKSPACE_ID}."
+        )
         print("    Aborting to avoid duplicates. Archive it in monday UI first to re-run.")
         return 1
 

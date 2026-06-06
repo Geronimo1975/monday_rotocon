@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 
 import httpx
@@ -11,7 +10,7 @@ from smoke_ki_integration_report import ReportData
 
 
 def test_load_env_raises_on_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    from smoke_ki_integration_report import RequiredEnv, load_env
+    from smoke_ki_integration_report import load_env
 
     for var in ("MONDAY_API_TOKEN", "N8N_WEBHOOK_URL", "N8N_WEBHOOK_TOKEN", "REPORT_RECIPIENT"):
         monkeypatch.delenv(var, raising=False)

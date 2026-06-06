@@ -8,6 +8,7 @@ by title and skipped.
 
 Uses only the Python stdlib so it works before `uv sync` has been run.
 """
+
 from __future__ import annotations
 
 import json
@@ -61,26 +62,35 @@ COLUMNS_PLAN: list[dict] = [
     {
         "title": "Status",
         "type": "status",
-        "defaults": json.dumps({
-            "labels": {
-                "0": "Not started",
-                "1": "In progress",
-                "2": "Blocked",
-                "3": "Done",
-                "4": "Deferred",
+        "defaults": json.dumps(
+            {
+                "labels": {
+                    "0": "Not started",
+                    "1": "In progress",
+                    "2": "Blocked",
+                    "3": "Done",
+                    "4": "Deferred",
+                }
             }
-        }),
+        ),
     },
     {
         "title": "Phase",
         "type": "status",
-        "defaults": json.dumps({
-            "labels": {
-                "0": "M1", "1": "M2", "2": "M3",
-                "3": "M4", "4": "M5", "5": "M6",
-                "6": "Onboarding", "7": "Ongoing",
+        "defaults": json.dumps(
+            {
+                "labels": {
+                    "0": "M1",
+                    "1": "M2",
+                    "2": "M3",
+                    "3": "M4",
+                    "4": "M5",
+                    "5": "M6",
+                    "6": "Onboarding",
+                    "7": "Ongoing",
+                }
             }
-        }),
+        ),
     },
     {"title": "Owner", "type": "people", "defaults": "{}"},
     {"title": "Timeline", "type": "timeline", "defaults": "{}"},
@@ -88,11 +98,16 @@ COLUMNS_PLAN: list[dict] = [
     {
         "title": "Priority",
         "type": "status",
-        "defaults": json.dumps({
-            "labels": {
-                "0": "Critical", "1": "High", "2": "Medium", "3": "Low",
+        "defaults": json.dumps(
+            {
+                "labels": {
+                    "0": "Critical",
+                    "1": "High",
+                    "2": "Medium",
+                    "3": "Low",
+                }
             }
-        }),
+        ),
     },
     {"title": "KPI link", "type": "link", "defaults": "{}"},
     {"title": "Dependency", "type": "dependency", "defaults": "{}"},
