@@ -22,12 +22,15 @@ import base64
 import json
 import os
 import sys
+import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from html import escape
 from typing import TypedDict
 from urllib.parse import quote
+
+import httpx
 
 from monday_rotocon import Item
 
@@ -260,6 +263,57 @@ def build_payload(
             mime_type="text/markdown",
         ),
     )
+
+
+class N8nWebhookError(RuntimeError):
+    """Raised when the n8n webhook fails after all retries."""
+
+
+def _sleep(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def post_to_n8n(
+    *,
+    url: str,
+    token: str,
+    payload: WebhookPayload | dict,
+    timeout: float = 30.0,
+    max_attempts: int = 3,
+) -> dict:
+    """POST `payload` to the n8n webhook with header auth and bounded retry.
+
+    Retries `max_attempts` times on `httpx.TransportError` with exponential
+    backoff (1s, 2s, ...). A non-2xx response raises immediately without retry.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            response = httpx.post(
+                url,
+                json=payload,
+                headers={"X-Smoke-Token": token, "Content-Type": "application/json"},
+                timeout=timeout,
+            )
+        except httpx.TransportError as exc:
+            last_exc = exc
+            if attempt < max_attempts - 1:
+                _sleep(1.0 * (2**attempt))
+                continue
+            raise N8nWebhookError(
+                f"transport error after {max_attempts} attempts: {exc!r}"
+            ) from exc
+
+        if response.status_code // 100 != 2:
+            raise N8nWebhookError(
+                f"n8n webhook returned {response.status_code}: {response.text[:500]}"
+            )
+        try:
+            return response.json()
+        except ValueError:
+            return {"status": "ok", "raw": response.text[:500]}
+    # Defensive: loop should always either return or raise.
+    raise N8nWebhookError(f"unreachable; last exc: {last_exc!r}")
 
 
 def main() -> int:

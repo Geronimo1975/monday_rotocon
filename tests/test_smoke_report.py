@@ -166,3 +166,69 @@ def test_build_payload_roundtrips_markdown_attachment() -> None:
     assert att["filename"] == "2026-06-06-test.md"
     assert att["mime_type"] == "text/markdown"
     assert base64.b64decode(att["content_base64"]).decode("utf-8") == md
+
+
+def test_post_to_n8n_success_returns_response_json(monkeypatch) -> None:
+    import respx
+    from smoke_ki_integration_report import post_to_n8n
+
+    monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda _seconds: None)
+
+    payload = {"subject": "hi", "recipient": "a@b.c", "html_body": "<p>hi</p>",
+               "markdown_attachment": {"filename": "x.md", "content_base64": "aGk=",
+                                       "mime_type": "text/markdown"}}
+    with respx.mock(base_url="https://n8n.example") as router:
+        router.post("/webhook/x").respond(
+            200, json={"status": "sent", "messageId": "msg-1"}
+        )
+        result = post_to_n8n(
+            url="https://n8n.example/webhook/x",
+            token="secret",
+            payload=payload,
+        )
+        assert result == {"status": "sent", "messageId": "msg-1"}
+
+
+def test_post_to_n8n_retries_three_times_on_transport_error(monkeypatch) -> None:
+    import httpx
+    import respx
+    from smoke_ki_integration_report import N8nWebhookError, post_to_n8n
+
+    sleeps: list[float] = []
+    monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda s: sleeps.append(s))
+
+    payload = {"subject": "x", "recipient": "a@b.c", "html_body": "x",
+               "markdown_attachment": {"filename": "x.md", "content_base64": "aA==",
+                                       "mime_type": "text/markdown"}}
+    with respx.mock(base_url="https://n8n.example") as router:
+        route = router.post("/webhook/x").mock(
+            side_effect=httpx.ConnectError("boom")
+        )
+        with pytest.raises(N8nWebhookError):
+            post_to_n8n(
+                url="https://n8n.example/webhook/x",
+                token="secret",
+                payload=payload,
+            )
+        assert route.call_count == 3
+        assert sleeps == [1.0, 2.0]
+
+
+def test_post_to_n8n_raises_on_non_2xx(monkeypatch) -> None:
+    import respx
+    from smoke_ki_integration_report import N8nWebhookError, post_to_n8n
+
+    monkeypatch.setattr("smoke_ki_integration_report._sleep", lambda _s: None)
+
+    payload = {"subject": "x", "recipient": "a@b.c", "html_body": "x",
+               "markdown_attachment": {"filename": "x.md", "content_base64": "aA==",
+                                       "mime_type": "text/markdown"}}
+    with respx.mock(base_url="https://n8n.example") as router:
+        router.post("/webhook/x").respond(500, text="boom")
+        with pytest.raises(N8nWebhookError) as excinfo:
+            post_to_n8n(
+                url="https://n8n.example/webhook/x",
+                token="secret",
+                payload=payload,
+            )
+        assert "500" in str(excinfo.value)
