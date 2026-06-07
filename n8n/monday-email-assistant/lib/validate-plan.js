@@ -13,6 +13,9 @@ function validatePlan(plan, catalog) {
   if (plan.answerable === false) {
     return { ok: true, errors: [], answerable: false };
   }
+  if (!catalog || typeof catalog.boards !== 'object' || catalog.boards === null) {
+    return { ok: false, errors: ['catalog is missing or malformed'], answerable: true };
+  }
 
   const errors = [];
   const board = catalog.boards[String(plan.board_id)];
@@ -29,9 +32,12 @@ function validatePlan(plan, catalog) {
     errors.push(`disallowed aggregation ${plan.aggregation}`);
   }
   if (plan.aggregation === 'avg' || plan.aggregation === 'sum') {
-    if (!plan.aggregation_column) errors.push('aggregation_column required for avg/sum');
-    else if (!colOk(plan.aggregation_column)) {
-      errors.push(`unknown aggregation_column ${plan.aggregation_column}`);
+    const col = plan.aggregation_column;
+    if (!col) errors.push('aggregation_column required for avg/sum');
+    else if (!colOk(col)) {
+      errors.push(`unknown aggregation_column ${col}`);
+    } else if (!(board && board.columns[col] && board.columns[col].type === 'numbers')) {
+      errors.push(`aggregation_column ${col} is not a numeric column`);
     }
   }
   if (plan.aggregation === 'group_count') {

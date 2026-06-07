@@ -22,6 +22,10 @@ test('case-insensitive Re: prefix is still ignored', () => {
   assert.strictEqual(isQuestion('RE: x @ask'), false);
 });
 
+test('a forwarded subject (Fwd:) is also ignored', () => {
+  assert.strictEqual(isQuestion('Fwd: x @ask'), false);
+});
+
 test('missing/empty subject is not a question', () => {
   assert.strictEqual(isQuestion(undefined), false);
   assert.strictEqual(isQuestion(''), false);

@@ -15,4 +15,4 @@ pasted into n8n **Code** nodes (function bodies are self-contained; no requires)
 | `prompts/plan-system.md` | Claude #1 (Plan) system prompt |
 | `prompts/phrase-system.md` | Claude #2 (Phrase) system prompt |
 
-Run tests: `node --test n8n/monday-email-assistant/lib/`
+Run tests: `node --test n8n/monday-email-assistant/lib/*.test.js`

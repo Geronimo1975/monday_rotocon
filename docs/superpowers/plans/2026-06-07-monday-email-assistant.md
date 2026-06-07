@@ -38,7 +38,7 @@ and the JS logic is testable. The n8n workflows are *assembled* from these.
 Each `lib/*.js` uses `module.exports` so its `.test.js` can require it; the same
 function definition is pasted into the matching n8n Code node (the function body is
 self-contained — no external requires — so it runs in n8n's sandbox). Run all tests
-with: `node --test n8n/monday-email-assistant/lib/`.
+with: `node --test n8n/monday-email-assistant/lib/*.test.js`.
 
 ---
 
@@ -70,7 +70,7 @@ pasted into n8n **Code** nodes (function bodies are self-contained; no requires)
 | `prompts/plan-system.md` | Claude #1 (Plan) system prompt |
 | `prompts/phrase-system.md` | Claude #2 (Phrase) system prompt |
 
-Run tests: `node --test n8n/monday-email-assistant/lib/`
+Run tests: `node --test n8n/monday-email-assistant/lib/*.test.js`
 ```
 
 - [ ] **Step 2: Create the .gitignore**
@@ -639,7 +639,7 @@ Expected: PASS — 10 tests.
 
 - [ ] **Step 5: Run the whole suite and commit**
 
-Run: `node --test n8n/monday-email-assistant/lib/`
+Run: `node --test n8n/monday-email-assistant/lib/*.test.js`
 Expected: PASS — all four lib modules (30 tests total).
 
 ```bash

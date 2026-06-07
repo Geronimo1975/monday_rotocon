@@ -64,6 +64,25 @@ test('avg over a known numeric column validates', () => {
   assert.strictEqual(r.ok, true);
 });
 
+test('avg over the name pseudo-column is rejected (not numeric)', () => {
+  const r = validatePlan(
+    { ...okPlan, aggregation: 'avg', aggregation_column: 'name' }, CATALOG);
+  assert.strictEqual(r.ok, false);
+});
+
+test('avg over a non-numeric (status) column is rejected', () => {
+  const r = validatePlan(
+    { ...okPlan, aggregation: 'avg', aggregation_column: 'status' }, CATALOG);
+  assert.strictEqual(r.ok, false);
+});
+
+test('a missing or malformed catalog is rejected', () => {
+  const r1 = validatePlan(okPlan, {});
+  assert.strictEqual(r1.ok, false);
+  const r2 = validatePlan(okPlan, null);
+  assert.strictEqual(r2.ok, false);
+});
+
 test('group_count requires group_by_column', () => {
   const r = validatePlan({ ...okPlan, aggregation: 'group_count' }, CATALOG);
   assert.strictEqual(r.ok, false);

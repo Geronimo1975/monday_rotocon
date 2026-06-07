@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { normalizeItem, aggregate } = require('./aggregate');
+const { normalizeItem, aggregate, matchFilter } = require('./aggregate');
 
 // Raw monday items shape: { id, name, column_values: [{ id, text, value }] }
 const RAW = [
@@ -82,4 +82,74 @@ test('filter on the name pseudo-column', () => {
   const r = aggregate(items, {
     ...base, filters: [{ column_id: 'name', op: 'contains', value: 'rot2' }] });
   assert.strictEqual(r.value, 1);
+});
+
+test('count with no filters key at all counts everything (filters fallback)', () => {
+  const r = aggregate(items, { aggregation: 'count' });
+  assert.strictEqual(r.value, 3);
+  assert.strictEqual(r.matched, 3);
+});
+
+test('an unhandled aggregation yields an error and no value', () => {
+  const r = aggregate(items, { filters: [], aggregation: 'bogus' });
+  assert.ok(typeof r.error === 'string' && r.error.length > 0);
+  assert.strictEqual(r.value, undefined);
+});
+
+test('matchFilter: not_equals', () => {
+  const [germany] = items;
+  assert.strictEqual(
+    matchFilter(germany, { column_id: 'country_mkxvqhys', op: 'not_equals', value: 'France' }),
+    true);
+  assert.strictEqual(
+    matchFilter(germany, { column_id: 'country_mkxvqhys', op: 'not_equals', value: 'Germany' }),
+    false);
+});
+
+test('matchFilter: gte', () => {
+  const [, rot300] = items; // numeric 80
+  assert.strictEqual(
+    matchFilter(rot300, { column_id: 'numeric_mm3x30na', op: 'gte', value: '80' }), true);
+  assert.strictEqual(
+    matchFilter(rot300, { column_id: 'numeric_mm3x30na', op: 'gte', value: '81' }), false);
+});
+
+test('matchFilter: lte', () => {
+  const [rot200] = items; // numeric 60
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'lte', value: '60' }), true);
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'lte', value: '59' }), false);
+});
+
+test('matchFilter: lt', () => {
+  const [rot200] = items; // numeric 60
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'lt', value: '70' }), true);
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'lt', value: '60' }), false);
+});
+
+test('matchFilter: is_empty (third item has empty numeric)', () => {
+  const [rot200, , rot400] = items;
+  assert.strictEqual(
+    matchFilter(rot400, { column_id: 'numeric_mm3x30na', op: 'is_empty' }), true);
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'is_empty' }), false);
+});
+
+test('matchFilter: not_empty', () => {
+  const [rot200, , rot400] = items;
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'numeric_mm3x30na', op: 'not_empty' }), true);
+  assert.strictEqual(
+    matchFilter(rot400, { column_id: 'numeric_mm3x30na', op: 'not_empty' }), false);
+});
+
+test('matchFilter: contains', () => {
+  const [rot200] = items;
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'name', op: 'contains', value: 'rot2' }), true);
+  assert.strictEqual(
+    matchFilter(rot200, { column_id: 'name', op: 'contains', value: 'xyz' }), false);
 });

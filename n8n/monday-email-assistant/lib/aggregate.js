@@ -71,6 +71,8 @@ function aggregate(items, plan) {
       }
       return row;
     });
+  } else {
+    out.error = 'unhandled aggregation: ' + plan.aggregation;
   }
   return out;
 }
