@@ -1,139 +1,147 @@
-# Weekly Machine Progress Email Report — Design
+# Weekly Machine Progress PDF Report — Design
 
 **Date:** 2026-06-07
 **Status:** Approved (design phase)
 **Author:** george@rotocon.world + Claude Code
-**Source brief:** `prompt_email.md` (repo root)
+**Source brief:** `prompt_email.md` (repo root), revised after PDF decision.
 
 ## Goal
 
-An n8n workflow that, on a weekly schedule, reads the current state of all
-machines from the `Europe Machine Overview` board, renders a single HTML email
-(portfolio KPIs + per-machine table + exception highlights), sends it via the
-existing Gmail credential, and appends one history row to Postgres.
+Every week, read the current state of all machines from the `Europe Machine
+Overview` board, render an **engineering-style PDF report** (portfolio KPIs +
+per-machine table + exception highlights), and email it as an **attachment**
+with a short HTML summary in the body. Persist one history row to Postgres.
 
-This is **Step 1** of the email-reporting track. Out of scope for Step 1:
-Obsidian integration, per-machine deep-dives, attachments, multi-channel
-(Slack) fan-out.
+This is **Step 1** of the email-reporting track. Out of scope: Obsidian
+integration, per-machine deep-dives, multi-channel (Slack) fan-out, raw-data
+exports.
 
 ## Confirmed decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| First-run audience | **george@rotocon.world only** | Validate rendering + data before the email reaches the internal team. The recipient list lives in one configurable node, trivial to expand to Marco + Matthias + Renelda + Metin + Nicole later. |
-| Sender | **george@rotocon.world** | Existing authenticated Gmail credential (`Gmail account`, id `ahEoxGuMkBRjQ9YF`). Zero setup. A dedicated `reports@` sender with SPF/DKIM is a later option. |
-| Postgres history | **Included from the start** | `report_history` row per run, in the existing `rotocon_finance` schema. |
-| Send day/time | **Monday 07:00 Europe/Bucharest** (default) | The value is the weekly rhythm. |
-| Content scope | **Hybrid** — KPI header + full table sorted by Overall + exceptions section | Default from brief. |
-| Subject line | **Dynamic** — `Rotocon · Machine Progress · KW{week} · {n_critical} critical` | Default from brief. |
-| Language | **English** | Multilingual team. |
-| Included machines | **Current Machines group (`topics`) only** | Exclude Demo / Installed / Template groups. |
-
-## Verified ground truth (monday + n8n, 2026-06-07)
-
-**Board** `Europe Machine Overview` (`5086438002`), workspace `Rotocon`
-(`5292504`), 74 machines, item terminology "Machine #". Target group `topics`
-= "Current Machines". Other groups (`group_mm36dsc2` Demo, `group_mkxwr53d`
-Installed, `group_mkz9xkz6` Template) are excluded.
-
-**Columns used** (all confirmed present):
-
-| Column ID | Title | Type | Use |
-|---|---|---|---|
-| `status` | Phase | status (15 labels Backlog→Warranty) | phase label |
-| `numeric_mm3xhrbf` | Phase Progress % | numbers | KPI, discrepancy |
-| `numeric_mm3xgyyw` | Subtask Done % | numbers | discrepancy |
-| `numeric_mm3x30na` | Overall Progress | numbers | sort key, avg KPI |
-| `color_mm06k0h1` | Project Status | status (critical/ok/late delivery/on hold/open procurement) | exception buckets |
-| `color_mm06wr1p` | Procurement | status | display |
-| `text_mkxvf3xh` | Machine Type | text | display |
-| `text_mkxvxap2` | Client | text | display |
-| `country_mkxvqhys` | Client's Country/Destination | country | display |
-| `person` | Responsible | people | display |
-| `timerange_mkxw4hgt` | Timeline | timeline | display |
-| `formula_mkxw3x4k` | Calc Deliver Date | formula | delivery-30d bucket |
-| `date_mky7mk4f` | FAT Date | date | display |
-| `date_mky785fe` | SAT Date | date | display |
-| `text_mm3x6tqs` | DATEV Project ID | text | (optional) join key for future finance reporting |
-
-**n8n landscape:** instance `https://n8n.rotocon.world`.
-- `monday-machine-progress-sync` (`dDmItkGhLfb1xNvJ`, active) populates the three
-  numeric progress columns every 30 min. Our report only **reads** these.
-- `Rotocon Finance: Bootstrap Postgres Schema` (`CEuPrVdKK3FTkJMb`) confirms the
-  `rotocon_finance` Postgres schema exists. We add a `report_history` table to it.
-- Credentials available: `Gmail account` (gmailOAuth2, `ahEoxGuMkBRjQ9YF`),
-  `Postgres account` (`l5HHFXvW5o8FdBkj`), `Monday API Token`
-  (httpHeaderAuth, `NvEH5iJQgsGArHfy`).
+| Decision | Choice |
+|---|---|
+| Delivery format | **PDF attachment** + short HTML summary in the email body |
+| PDF style | **Engineering-document** — dense, tabular, monospace accents, header/footer with metadata (date, KW, version) |
+| PDF engine | **Python + WeasyPrint** (in-house), reusing the `monday_rotocon` library |
+| Scheduler | **GitHub Actions cron** (no new server) |
+| First-run audience | **george@rotocon.world only** (recipient list in one config point, easy to expand) |
+| Sender | **george@rotocon.world** via the existing n8n `Gmail account` credential |
+| Postgres history | **Included from the start** — `report_history` row per run in `rotocon_finance` |
+| Send time | **Monday ~07:00 Europe/Bucharest** (GitHub cron is UTC — see Scheduling) |
+| Content scope | Hybrid — KPI header + full table sorted by Overall + exceptions section |
+| Subject | Dynamic — `Rotocon · Machine Progress · KW{week} · {n_critical} critical` |
+| Language | English |
+| Included machines | Current Machines group (`topics`) only |
 
 ## Architecture
 
-Single linear workflow `monday-machine-weekly-report`, two Code nodes
-separating data shaping from presentation so the shape node can later feed a
-Slack digest without change.
+Clean split of responsibilities: **GitHub = compute**, **n8n = delivery + persistence**.
 
 ```
-Schedule Trigger (cron 0 7 * * 1, TZ Europe/Bucharest)
-   ↓
-Fetch Machines (HTTP POST monday GraphQL — items + selected columns, group topics)
-   ↓
-Compute Aggregates (Code #1 — KPI totals, exception buckets, sort, ISO week)
-   ↓
-Render HTML (Code #2 — inline-styled string template, no external deps)
-   ↓
-Send Email (Gmail node — to: configurable list, subject: dynamic, html)
-   ↓
-Postgres: ensure table (CREATE TABLE IF NOT EXISTS report_history)
-   ↓
-Postgres: insert one history row
+GitHub Actions (cron, weekly + manual workflow_dispatch)
+   → uv run scripts/weekly_machine_report.py
+        · monday_rotocon reads board 5086438002 (group topics)
+        · compute aggregates (KPIs, exceptions, sort)
+        · render engineering HTML → PDF (WeasyPrint)
+        · build short HTML email summary
+        · POST { subject, recipient, html_summary, pdf_base64, stats } to n8n webhook
+                ↓
+n8n workflow  monday-machine-weekly-report-delivery
+   → Webhook (header auth, X-Report-Token)
+   → Convert to File (base64 pdf → binary attachment)
+   → Gmail: send (HTML summary body + PDF attachment → recipient)
+   → Postgres: CREATE TABLE IF NOT EXISTS report_history
+   → Postgres: INSERT one history row
+   → Respond to Webhook (200 { status, messageId })
 ```
 
-Postgres writes execute **only after** a successful Gmail send (downstream of
-the Send node), so a failed send produces no history row.
+**Why route email through n8n instead of sending from GitHub Actions:** Gmail
+OAuth and Postgres credentials already live in n8n (used by other workflows).
+Sending from Actions would mean managing an SMTP app-password / OAuth refresh
+token in GitHub secrets. Routing the finished artifact to n8n keeps all delivery
+credentials in one place and reuses the proven smoke-report webhook pattern.
 
-**Considered alternatives (rejected):**
-- *Shared fetch sub-workflow* with `monday-machine-progress-sync` — more DRY but
-  couples two currently-independent workflows; premature.
-- *Single mega Code node* — fewer nodes but not reusable and hard to debug.
+**Why GitHub Actions as scheduler:** the repo is already on GitHub; a scheduled
+workflow needs zero new infrastructure, runs Python 3.12 + uv natively, and
+manages `MONDAY_API_TOKEN` / webhook token as encrypted secrets. WeasyPrint's
+system libraries (cairo, pango, gdk-pixbuf) install via `apt-get` in the runner.
 
-## Component detail
+**Considered & rejected:** n8n-native HTML→PDF (no core node; needs Gotenberg or
+a community node — the user chose Python to reuse the library). SaaS PDF API
+(report data would leave the company). Cron on the n8n host (more infra to own).
 
-### Fetch Machines
-GraphQL query against board `5086438002`, `items_page(limit: 100)` filtered to
-group `topics`, requesting only the 13 columns above (id, text, value each).
-74 items fit in one page — no pagination needed.
+## Components
 
-### Compute Aggregates (Code #1)
-Normalises each machine into a flat object, then emits `{ summary, exceptions,
-machines }`:
-- **summary**: `total`, `by_phase`, `avg_overall`, `critical_count`,
-  `late_count`, `discrepancy_count` (`phase_pct - subtask_pct >= 40`),
-  `delivery_30d_count` (Calc Deliver Date within next 30 days), ISO `week`,
-  generated timestamp.
-- **exceptions**: machines matching `critical | late delivery | discrepancy >= 40
-  | (delivery <= 30d AND overall < 70)`, sorted by urgency.
-- **machines**: all current machines sorted by `overall_progress` desc.
+### 1. `scripts/weekly_machine_report.py` (new, read-only)
+Importable module, same shape and conventions as `scripts/smoke_ki_integration_report.py`
+(env loader, pure render helpers, `main()` with `--dry-run`). Read-only: only
+reads monday, never mutates — consistent with the library invariant and the
+existing smoke-report precedent (`pythonpath = ["scripts"]` already set).
 
-### Render HTML (Code #2)
-Inline-styled HTML (most clients strip `<link>`), max width 720px, centred,
-system font stack. Header band `#0073EA`; KPI strip (Total / Avg / Critical /
-Late); exceptions table with a "Why" column; full portfolio table with an inline
-progress-bar `<div>`. Status badges colour-coded (critical `#df2f4a`, late
-`#ff6d3b`, ok `#037f4c`, on hold `#c4c4c4`, open procurement `#ff007f`). No JS,
-no external images except the chart is dropped for v1. Output a single `html`
-string. Edge cases:
-- null Overall → render `—`, not `null`.
-- no Responsible → blank cell, no crash.
-- empty exception list → "No exceptions this week ✅", not an empty table.
+Functions:
+- `load_env() -> RequiredEnv` — `MONDAY_API_TOKEN`, `N8N_WEBHOOK_URL`,
+  `N8N_WEBHOOK_TOKEN`, `REPORT_RECIPIENT`. Exits 1 if any missing.
+- `fetch_current_machines(client) -> list[Item]` — `items_for_board(5086438002)`
+  filtered to `item.group.id == "topics"`.
+- `compute_summary(machines) -> PortfolioSummary` — `total`, `avg_overall`,
+  `critical_count`, `late_count`, `discrepancy_count` (`phase_pct - subtask_pct
+  >= 40`), `delivery_30d_count`, ISO `week`, `generated_at`.
+- `build_exceptions(machines) -> list[ExceptionRow]` — `critical | late delivery
+  | discrepancy >= 40 | (delivery <= 30d AND overall < 70)`, sorted by urgency,
+  each with a `why` string.
+- `render_report_html(summary, exceptions, machines) -> str` — full engineering
+  layout (print CSS: `@page` size A4, margins, header/footer with KW + version +
+  page numbers; monospace for IDs/numbers; dense tables).
+- `render_pdf(html) -> bytes` — WeasyPrint `HTML(string=html).write_pdf()`.
+- `render_email_summary_html(summary) -> str` — short inline-styled KPI strip +
+  "Full report attached as PDF".
+- `build_payload(...)` — `{ subject, recipient, html_summary, pdf:
+  {filename, content_base64, mime_type:"application/pdf"}, stats: {...} }`.
+- `post_to_n8n(...)` — header-auth POST with 3-attempt backoff (reuse the
+  smoke-report implementation).
+- `main(--dry-run)` — dry-run writes the PDF locally to `reports/` and skips the
+  POST; full run POSTs to n8n.
 
-### Send Email (Gmail)
-Credential `Gmail account`. From: authenticated user (george@). Recipient list
-held in a single upstream Set/config node — initial value `george@rotocon.world`.
-Subject: `Rotocon · Machine Progress · KW{week} · {critical_count} critical`.
-Body: `html`, HTML mode. Plain-text fallback auto-generated or HTML-only for v1.
+Column IDs used (all verified present on the board, 2026-06-07): `status`,
+`numeric_mm3xhrbf` (Phase %), `numeric_mm3xgyyw` (Subtask %), `numeric_mm3x30na`
+(Overall), `color_mm06k0h1` (Project Status), `color_mm06wr1p` (Procurement),
+`text_mkxvf3xh` (Machine Type), `text_mkxvxap2` (Client), `country_mkxvqhys`,
+`person`, `timerange_mkxw4hgt`, `formula_mkxw3x4k` (Calc Deliver Date),
+`date_mky7mk4f` (FAT), `date_mky785fe` (SAT).
 
-### Postgres history
-Schema `rotocon_finance`. Table:
+### 2. Dependency: WeasyPrint
+Add to `pyproject.toml` as an optional extra: `[project.optional-dependencies]
+report = ["weasyprint>=62"]`. Runtime system libs (cairo, pango, gdk-pixbuf,
+libffi) are documented for both local dev (macOS: `brew install pango`) and the
+GitHub runner (`apt-get install libpango-1.0-0 libpangocairo-1.0-0
+libgdk-pixbuf2.0-0 libffi-dev`). WeasyPrint is **not** added to the default
+runtime deps so the read-only library stays lightweight.
 
+### 3. n8n workflow `monday-machine-weekly-report-delivery`
+Webhook (POST `/webhook/monday-weekly-report`, header auth `X-Report-Token`,
+responseMode `responseNode`) → **Convert to File** (decode `body.pdf.content_base64`
+to a binary property `report_pdf`) → **Gmail** send (to `body.recipient`,
+subject `body.subject`, HTML `body.html_summary`, attach `report_pdf`) →
+**Postgres** ensure-table → **Postgres** insert → **Respond** 200.
+
+> ⚠ Known payload-shape gotcha: once the **Convert to File** node is in the
+> chain, downstream nodes must read webhook fields via
+> `$('Webhook').first().json.body.X`, **not** `$json.body.X` (the binary node
+> changes the active item shape). This is recorded in MEMORY
+> (`n8n_webhook_payload_after_convert_to_file`).
+
+Credentials: header-auth credential `Report Webhook Token` (new, reuse the
+smoke-report token convention), `Gmail account` (`ahEoxGuMkBRjQ9YF`),
+`Postgres account` (`l5HHFXvW5o8FdBkj`).
+
+### 4. `.github/workflows/weekly-machine-report.yml`
+Triggers: `schedule` (weekly cron) + `workflow_dispatch` (manual). Steps:
+checkout → setup Python 3.12 → install uv → `apt-get` WeasyPrint libs →
+`uv sync --extra report` → `uv run python scripts/weekly_machine_report.py`.
+Secrets: `MONDAY_API_TOKEN`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_TOKEN`,
+`REPORT_RECIPIENT`.
+
+### 5. Postgres `rotocon_finance.report_history`
 ```sql
 CREATE TABLE IF NOT EXISTS rotocon_finance.report_history (
   id            SERIAL PRIMARY KEY,
@@ -145,42 +153,56 @@ CREATE TABLE IF NOT EXISTS rotocon_finance.report_history (
   critical_n    INT,
   late_n        INT,
   recipient     TEXT,
-  html_size_kb  INT
+  pdf_size_kb   INT
 );
 ```
+One `INSERT` per run, downstream of a successful Gmail send.
 
-One `INSERT` per run, downstream of the Send node.
+## Scheduling detail
+
+GitHub cron is **UTC with no DST**. Bucharest is UTC+2 (winter) / UTC+3
+(summer). `cron: "0 5 * * 1"` fires 07:00 in winter and 08:00 in summer — close
+enough for a weekly report; the exact minute is immaterial. `workflow_dispatch`
+allows on-demand runs for testing and ad-hoc sends. (GitHub may delay scheduled
+runs by a few minutes under load — acceptable here.)
 
 ## Error handling
 
 | Failure | Behaviour |
 |---|---|
-| monday API rate limit / 5xx on fetch | Single small query; n8n node retry (3×) handles transient errors. Persistent failure aborts the run — no email, no history row. |
-| Gmail send fails | Workflow stops at Send node; Postgres nodes do not execute, so no false "sent" row. n8n surfaces the failed execution in its log. |
-| Machine with null/empty progress | Rendered as `—`; never crashes the Code node. |
-| Timezone drift | Workflow timezone pinned to `Europe/Bucharest` in settings. |
-| Empty week (no changes) | Send anyway; the rhythm is the value. |
+| monday API 5xx / rate limit | Library retry (exponential backoff) handles transient errors; persistent failure exits non-zero → Actions run fails, no email. |
+| WeasyPrint render error | Script exits non-zero before POST → no partial email; Actions surfaces the failure. |
+| n8n webhook unreachable | `post_to_n8n` retries 3× (1s/2s/4s) then exits non-zero. |
+| Gmail send fails | Workflow stops at Gmail node; Postgres nodes don't run → no false "sent" row. |
+| Machine with null Overall / no Responsible | Rendered as `—` / blank; never crashes. |
+| Empty exception list | "No exceptions this week ✅", not an empty table. |
 
 ## Testing & rollout
 
-1. Create the workflow **inactive**.
-2. Validate via `n8n_validate_workflow`; fix until clean.
-3. Manual run once → email lands in george@'s inbox within ~60s; one row in
-   `report_history`.
-4. Spot-check: pick 2 machines, verify KPI numbers and exception membership
-   against the board.
-5. Render check in Gmail web (primary target for v1).
-6. Only after sign-off on the rendered email: activate the schedule. Expanding
-   the recipient list to the internal team is a one-node edit, done separately.
+1. **Unit tests** (`respx`-mocked, no network): `compute_summary`,
+   `build_exceptions`, `render_report_html` (asserts key sections/edge cases),
+   `render_pdf` (asserts output starts with `%PDF`), `build_payload`
+   (base64 round-trip), `post_to_n8n` (success / retry / non-2xx).
+2. **Local dry-run**: `uv run python scripts/weekly_machine_report.py --dry-run`
+   writes the PDF to `reports/` — open and eyeball the engineering layout.
+3. **n8n workflow** created **inactive**, validated, manually curl-tested with a
+   tiny PDF (auth + attach + Postgres insert work).
+4. **End-to-end manual run** via `workflow_dispatch` → email with PDF lands in
+   george@'s inbox; one row in `report_history`.
+5. **Spot-check**: 2 machines, KPI numbers and exception membership vs the board.
+6. Activate the weekly cron only after george@ signs off on the rendered PDF.
+   Expanding the recipient list to the internal team is a one-line edit, done
+   separately.
 
 ## Deliverables
 
-1. n8n workflow `monday-machine-weekly-report` — inactive, validated, manually
+1. `scripts/weekly_machine_report.py` + unit tests + opt-in integration test.
+2. `weasyprint` extra in `pyproject.toml`; system-deps documented.
+3. n8n workflow `monday-machine-weekly-report-delivery` — inactive, validated,
    test-run.
-2. `report_history` table created in `rotocon_finance`.
-3. Sample rendered HTML saved as `prompt_email_sample.html` for design review
-   before first send.
-4. `MEMORY.md` entry for any non-obvious build decision.
-5. Activation only after george@ signs off on the sample.
+4. `report_history` table in `rotocon_finance`.
+5. `.github/workflows/weekly-machine-report.yml` + a `SECRETS.md` note listing
+   the four required GitHub secrets.
+6. Sample PDF saved as `reports/sample-weekly-machine-report.pdf` for sign-off.
+7. `MEMORY.md` entry for any non-obvious build decision.
 </content>
-</invoke>
