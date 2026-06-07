@@ -427,6 +427,62 @@ def render_email_summary_html(summary: PortfolioSummary) -> str:
 """
 
 
+class PdfAttachment(TypedDict):
+    filename: str
+    content_base64: str
+    mime_type: str
+
+
+class ReportStats(TypedDict):
+    report_type: str
+    board_id: str
+    machine_count: int
+    avg_overall: float | None
+    critical_n: int
+    late_n: int
+    pdf_size_kb: int
+
+
+class WebhookPayload(TypedDict):
+    subject: str
+    recipient: str
+    html_summary: str
+    pdf: PdfAttachment
+    stats: ReportStats
+
+
+def build_payload(
+    *,
+    summary: PortfolioSummary,
+    recipient: str,
+    html_summary: str,
+    pdf_bytes: bytes,
+    pdf_filename: str,
+) -> WebhookPayload:
+    return WebhookPayload(
+        subject=(
+            f"Rotocon · Machine Progress · KW{summary.week} · "
+            f"{summary.critical_count} critical"
+        ),
+        recipient=recipient,
+        html_summary=html_summary,
+        pdf=PdfAttachment(
+            filename=pdf_filename,
+            content_base64=base64.b64encode(pdf_bytes).decode("ascii"),
+            mime_type="application/pdf",
+        ),
+        stats=ReportStats(
+            report_type="weekly_machine_progress",
+            board_id=BOARD_ID,
+            machine_count=summary.total,
+            avg_overall=summary.avg_overall,
+            critical_n=summary.critical_count,
+            late_n=summary.late_count,
+            pdf_size_kb=max(1, round(len(pdf_bytes) / 1024)),
+        ),
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(

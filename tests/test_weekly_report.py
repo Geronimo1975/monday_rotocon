@@ -266,3 +266,31 @@ def test_render_email_summary_is_short_and_mentions_attachment() -> None:
     assert "2" in html            # critical
     assert "attached" in html.lower()
     assert "<table" not in html   # body stays short, no full table
+
+
+def test_build_payload_embeds_pdf_and_stats() -> None:
+    import base64
+
+    from weekly_machine_report import build_payload
+
+    summary = _summary(total=12, avg_overall=44.0, critical_count=2, late_count=3)
+    payload = build_payload(
+        summary=summary,
+        recipient="george@rotocon.world",
+        html_summary="<div>hi</div>",
+        pdf_bytes=b"%PDF-1.7 fake",
+        pdf_filename="2026-06-07-weekly.pdf",
+    )
+    assert payload["recipient"] == "george@rotocon.world"
+    assert payload["html_summary"] == "<div>hi</div>"
+    assert "KW23" in payload["subject"]
+    assert "2 critical" in payload["subject"]
+    assert payload["pdf"]["filename"] == "2026-06-07-weekly.pdf"
+    assert payload["pdf"]["mime_type"] == "application/pdf"
+    assert base64.b64decode(payload["pdf"]["content_base64"]) == b"%PDF-1.7 fake"
+    assert payload["stats"]["machine_count"] == 12
+    assert payload["stats"]["avg_overall"] == 44.0
+    assert payload["stats"]["critical_n"] == 2
+    assert payload["stats"]["late_n"] == 3
+    assert payload["stats"]["board_id"] == "5086438002"
+    assert payload["stats"]["pdf_size_kb"] == 1
