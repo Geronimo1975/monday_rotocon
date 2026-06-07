@@ -909,7 +909,7 @@ def render_report_html(
 </style></head>
 <body>
   <h1>Machine Progress Report</h1>
-  <div class="meta">Europe Machine Overview · KW{summary.week} · generated {stamp} · board {BOARD_ID}</div>
+  <div class="meta">Rotocon · Europe Machine Overview · KW{summary.week} · generated {stamp} · board {BOARD_ID}</div>
 
   <div class="kpis">
     <div class="kpi"><div class="num">{summary.total}</div><div class="lbl">Total machines</div></div>
