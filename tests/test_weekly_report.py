@@ -33,8 +33,9 @@ def test_load_env_returns_typed_struct(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_col_text_and_col_number_read_column_values() -> None:
-    from monday_rotocon import Item
     from weekly_machine_report import col_number, col_text
+
+    from monday_rotocon import Item
 
     item = Item.model_validate(
         {
@@ -50,7 +51,7 @@ def test_col_text_and_col_number_read_column_values() -> None:
     )
     assert col_text(item, "text_mkxvxap2") == "Valley Co"
     assert col_number(item, "numeric_mm3x30na") == 45.0
-    assert col_number(item, "numeric_mm3xhrbf") is None   # empty text
+    assert col_number(item, "numeric_mm3xhrbf") is None  # empty text
     assert col_number(item, "does_not_exist") is None
     assert col_text(item, "does_not_exist") is None
 
@@ -93,11 +94,20 @@ def _row(**overrides):
     from weekly_machine_report import MachineRow
 
     defaults = dict(
-        machine_no="ROT200E", machine_type="RDF340", client="Valley Co",
-        country="Germany", responsible="Metin Ertem", phase="Production",
-        project_status="ok", procurement="All on Order",
-        phase_pct=40.0, subtask_pct=30.0, overall=36.0,
-        deliver_text="15-Aug-2026", fat_date=None, sat_date=None,
+        machine_no="ROT200E",
+        machine_type="RDF340",
+        client="Valley Co",
+        country="Germany",
+        responsible="Metin Ertem",
+        phase="Production",
+        project_status="ok",
+        procurement="All on Order",
+        phase_pct=40.0,
+        subtask_pct=30.0,
+        overall=36.0,
+        deliver_text="15-Aug-2026",
+        fat_date=None,
+        sat_date=None,
     )
     defaults.update(overrides)
     return MachineRow(**defaults)
@@ -109,8 +119,13 @@ def _summary(**overrides):
     from weekly_machine_report import PortfolioSummary
 
     defaults = dict(
-        total=3, avg_overall=42.0, critical_count=1, late_count=1,
-        discrepancy_count=1, delivery_30d_count=0, week=23,
+        total=3,
+        avg_overall=42.0,
+        critical_count=1,
+        late_count=1,
+        discrepancy_count=1,
+        delivery_30d_count=0,
+        week=23,
         generated_at=datetime(2026, 6, 7, 5, 0, tzinfo=UTC),
         by_phase={"Production": 2, "FAT": 1},
     )
@@ -171,8 +186,8 @@ def test_compute_summary_counts_kpis() -> None:
     assert summary.total == 4
     assert summary.critical_count == 1
     assert summary.late_count == 1
-    assert summary.discrepancy_count == 1            # the 60-vs-5 machine
-    assert summary.avg_overall == 50.0               # mean of 80,20,50 (None excluded)
+    assert summary.discrepancy_count == 1  # the 60-vs-5 machine
+    assert summary.avg_overall == 50.0  # mean of 80,20,50 (None excluded)
     assert summary.week == now.isocalendar().week
 
 
@@ -186,8 +201,14 @@ def test_build_exceptions_flags_each_rule() -> None:
         _row(machine_no="CRIT", overall=30, project_status="critical"),
         _row(machine_no="LATE", overall=40, project_status="late delivery"),
         _row(machine_no="GAP", overall=50, project_status="ok", phase_pct=70, subtask_pct=10),
-        _row(machine_no="SOON", overall=60, project_status="ok", phase_pct=60,
-             subtask_pct=55, deliver_text="20-Jun-2026"),
+        _row(
+            machine_no="SOON",
+            overall=60,
+            project_status="ok",
+            phase_pct=60,
+            subtask_pct=55,
+            deliver_text="20-Jun-2026",
+        ),
     ]
     now = datetime(2026, 6, 7, 5, 0, tzinfo=UTC)
     exceptions = build_exceptions(rows, generated_at=now)
@@ -238,8 +259,16 @@ def test_render_report_html_renders_dashes_for_missing_overall() -> None:
 def test_render_report_html_lists_exceptions_when_present() -> None:
     from weekly_machine_report import ExceptionRow, render_report_html
 
-    excs = [ExceptionRow(machine_no="CRIT", client="ACME", phase="FAT",
-                         overall=30.0, why="Project status critical", urgency=0)]
+    excs = [
+        ExceptionRow(
+            machine_no="CRIT",
+            client="ACME",
+            phase="FAT",
+            overall=30.0,
+            why="Project status critical",
+            urgency=0,
+        )
+    ]
     html = render_report_html(_summary(), excs, [_row()])
     assert "CRIT" in html
     assert "Project status critical" in html
@@ -262,10 +291,10 @@ def test_render_email_summary_is_short_and_mentions_attachment() -> None:
 
     html = render_email_summary_html(_summary(critical_count=2, total=10))
     assert "KW23" in html
-    assert "10" in html           # total
-    assert "2" in html            # critical
+    assert "10" in html  # total
+    assert "2" in html  # critical
     assert "attached" in html.lower()
-    assert "<table" not in html   # body stays short, no full table
+    assert "<table" not in html  # body stays short, no full table
 
 
 def test_build_payload_embeds_pdf_and_stats() -> None:
@@ -298,13 +327,16 @@ def test_build_payload_embeds_pdf_and_stats() -> None:
 
 def test_post_to_n8n_success_returns_json(monkeypatch) -> None:
     import respx
-
     from weekly_machine_report import post_to_n8n
 
     monkeypatch.setattr("weekly_machine_report._sleep", lambda _s: None)
-    payload = {"subject": "x", "recipient": "a@b.c", "html_summary": "<p>x</p>",
-               "pdf": {"filename": "x.pdf", "content_base64": "JVBERg==",
-                       "mime_type": "application/pdf"}, "stats": {}}
+    payload = {
+        "subject": "x",
+        "recipient": "a@b.c",
+        "html_summary": "<p>x</p>",
+        "pdf": {"filename": "x.pdf", "content_base64": "JVBERg==", "mime_type": "application/pdf"},
+        "stats": {},
+    }
     with respx.mock(base_url="https://n8n.example") as router:
         router.post("/webhook/x").respond(200, json={"status": "sent", "messageId": "m1"})
         result = post_to_n8n(url="https://n8n.example/webhook/x", token="t", payload=payload)
@@ -315,14 +347,17 @@ def test_post_to_n8n_retries_then_raises(monkeypatch) -> None:
     import httpx
     import pytest
     import respx
-
     from weekly_machine_report import N8nWebhookError, post_to_n8n
 
     sleeps: list[float] = []
     monkeypatch.setattr("weekly_machine_report._sleep", lambda s: sleeps.append(s))
-    payload = {"subject": "x", "recipient": "a@b.c", "html_summary": "x",
-               "pdf": {"filename": "x.pdf", "content_base64": "JQ==",
-                       "mime_type": "application/pdf"}, "stats": {}}
+    payload = {
+        "subject": "x",
+        "recipient": "a@b.c",
+        "html_summary": "x",
+        "pdf": {"filename": "x.pdf", "content_base64": "JQ==", "mime_type": "application/pdf"},
+        "stats": {},
+    }
     with respx.mock(base_url="https://n8n.example") as router:
         route = router.post("/webhook/x").mock(side_effect=httpx.ConnectError("boom"))
         with pytest.raises(N8nWebhookError):
@@ -334,15 +369,87 @@ def test_post_to_n8n_retries_then_raises(monkeypatch) -> None:
 def test_post_to_n8n_raises_on_non_2xx(monkeypatch) -> None:
     import pytest
     import respx
-
     from weekly_machine_report import N8nWebhookError, post_to_n8n
 
     monkeypatch.setattr("weekly_machine_report._sleep", lambda _s: None)
-    payload = {"subject": "x", "recipient": "a@b.c", "html_summary": "x",
-               "pdf": {"filename": "x.pdf", "content_base64": "JQ==",
-                       "mime_type": "application/pdf"}, "stats": {}}
+    payload = {
+        "subject": "x",
+        "recipient": "a@b.c",
+        "html_summary": "x",
+        "pdf": {"filename": "x.pdf", "content_base64": "JQ==", "mime_type": "application/pdf"},
+        "stats": {},
+    }
     with respx.mock(base_url="https://n8n.example") as router:
         router.post("/webhook/x").respond(500, text="boom")
         with pytest.raises(N8nWebhookError) as excinfo:
             post_to_n8n(url="https://n8n.example/webhook/x", token="t", payload=payload)
         assert "500" in str(excinfo.value)
+
+
+def test_main_dry_run_writes_pdf_and_skips_webhook(monkeypatch, tmp_path) -> None:
+    import pytest
+    import respx
+
+    pytest.importorskip("weasyprint")
+
+    monkeypatch.setenv("MONDAY_API_TOKEN", "t")
+    monkeypatch.setenv("N8N_WEBHOOK_URL", "https://n8n.example/webhook/x")
+    monkeypatch.setenv("N8N_WEBHOOK_TOKEN", "secret")
+    monkeypatch.setenv("REPORT_RECIPIENT", "a@b.c")
+    monkeypatch.chdir(tmp_path)
+
+    items_data = {
+        "data": {
+            "boards": [
+                {
+                    "items_page": {
+                        "cursor": None,
+                        "items": [
+                            {
+                                "id": "1",
+                                "name": "ROT200E",
+                                "state": "active",
+                                "group": {"id": "topics", "title": "Current Machines"},
+                                "column_values": [
+                                    {
+                                        "id": "numeric_mm3x30na",
+                                        "type": "numbers",
+                                        "text": "55",
+                                        "value": "55",
+                                    },
+                                    {
+                                        "id": "color_mm06k0h1",
+                                        "type": "color",
+                                        "text": "ok",
+                                        "value": None,
+                                    },
+                                ],
+                            },
+                            {
+                                "id": "2",
+                                "name": "DEMO",
+                                "state": "active",
+                                "group": {"id": "group_demo", "title": "Demo Machine"},
+                                "column_values": [],
+                            },
+                        ],
+                    }
+                }
+            ]
+        }
+    }
+    import sys
+
+    import httpx
+
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").mock(side_effect=[httpx.Response(200, json=items_data)])
+        from weekly_machine_report import main
+
+        monkeypatch.setattr(sys, "argv", ["weekly", "--dry-run"])
+        exit_code = main()
+        assert exit_code == 0
+
+    pdfs = list((tmp_path / "reports").glob("*.pdf"))
+    assert len(pdfs) == 1
+    assert pdfs[0].read_bytes()[:5] == b"%PDF-"

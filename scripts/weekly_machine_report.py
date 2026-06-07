@@ -31,8 +31,8 @@ from monday_rotocon import Item, MondayAPIError, MondayClient
 
 # ------------------------------ constants --------------------------------------
 
-BOARD_ID = "5086438002"            # Europe Machine Overview
-CURRENT_GROUP_ID = "topics"        # "Current Machines" group
+BOARD_ID = "5086438002"  # Europe Machine Overview
+CURRENT_GROUP_ID = "topics"  # "Current Machines" group
 
 COL_PHASE = "status"
 COL_PHASE_PCT = "numeric_mm3xhrbf"
@@ -219,12 +219,10 @@ class ExceptionRow:
     phase: str | None
     overall: float | None
     why: str
-    urgency: int   # lower sorts first
+    urgency: int  # lower sorts first
 
 
-def build_exceptions(
-    rows: list[MachineRow], *, generated_at: datetime
-) -> list[ExceptionRow]:
+def build_exceptions(rows: list[MachineRow], *, generated_at: datetime) -> list[ExceptionRow]:
     """Flag machines needing attention, sorted by urgency (critical first)."""
     today = generated_at.date()
     out: list[ExceptionRow] = []
@@ -260,7 +258,7 @@ def build_exceptions(
 
 
 def _fmt_pct(value: float | None) -> str:
-    return "—" if value is None else f"{int(round(value))}%"
+    return "—" if value is None else f"{round(value)}%"
 
 
 def _fmt(value: str | None) -> str:
@@ -268,7 +266,7 @@ def _fmt(value: str | None) -> str:
 
 
 def _progress_bar(value: float | None) -> str:
-    pct = 0 if value is None else max(0, min(100, int(round(value))))
+    pct = 0 if value is None else max(0, min(100, round(value)))
     return (
         "<div class='track'>"
         f"<div class='fill' style='width:{pct}%'></div>"
@@ -395,7 +393,7 @@ def render_pdf(html: str) -> bytes:
     WeasyPrint is imported lazily so the rest of the module (and the unit
     test suite) loads without its system libraries installed.
     """
-    from weasyprint import HTML  # noqa: PLC0415  (intentional lazy import)
+    from weasyprint import HTML
 
     pdf = HTML(string=html).write_pdf()
     if pdf is None:  # pragma: no cover - write_pdf() returns bytes when no target
@@ -461,8 +459,7 @@ def build_payload(
 ) -> WebhookPayload:
     return WebhookPayload(
         subject=(
-            f"Rotocon · Machine Progress · KW{summary.week} · "
-            f"{summary.critical_count} critical"
+            f"Rotocon · Machine Progress · KW{summary.week} · {summary.critical_count} critical"
         ),
         recipient=recipient,
         html_summary=html_summary,
@@ -533,6 +530,10 @@ def post_to_n8n(
     raise N8nWebhookError(f"unreachable; last exc: {last_exc!r}")
 
 
+def _now_utc() -> datetime:
+    return datetime.now(tz=UTC)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(
@@ -541,10 +542,53 @@ def main() -> int:
         help="Fetch + render + save PDF locally; do not POST to n8n.",
     )
     args = parser.parse_args()
-    _ = load_env()
-    # Orchestration is wired up in Task 11.
-    _ = args
-    raise SystemExit(0)
+    env = load_env()
+
+    try:
+        with MondayClient(api_token=env.monday_token) as client:
+            machines = fetch_current_machines(client)
+    except MondayAPIError as exc:
+        print(f"monday API error: {exc!r}", file=sys.stderr)
+        return 2
+
+    generated_at = _now_utc()
+    summary = compute_summary(machines, generated_at=generated_at)
+    exceptions = build_exceptions(machines, generated_at=generated_at)
+
+    report_html = render_report_html(summary, exceptions, machines)
+    pdf_bytes = render_pdf(report_html)
+    email_html = render_email_summary_html(summary)
+
+    reports_dir = Path("reports")
+    reports_dir.mkdir(exist_ok=True)
+    stamp = generated_at.strftime("%Y-%m-%d-%H%M")
+    pdf_filename = f"{stamp}-weekly-machine-report.pdf"
+    pdf_path = reports_dir / pdf_filename
+    pdf_path.write_bytes(pdf_bytes)
+    print(f"Wrote {pdf_path} ({len(pdf_bytes) // 1024} KB, {summary.total} machines)")
+
+    if args.dry_run:
+        print(f"--dry-run: skipping n8n POST (critical={summary.critical_count})")
+        return 0
+
+    payload = build_payload(
+        summary=summary,
+        recipient=env.recipient,
+        html_summary=email_html,
+        pdf_bytes=pdf_bytes,
+        pdf_filename=pdf_filename,
+    )
+    try:
+        response = post_to_n8n(url=env.webhook_url, token=env.webhook_token, payload=payload)
+    except N8nWebhookError as exc:
+        print(f"n8n webhook error: {exc!r}", file=sys.stderr)
+        return 3
+
+    print(
+        f"OK machines={summary.total} critical={summary.critical_count} "
+        f"n8n_messageId={response.get('messageId', '?')} pdf={pdf_path}"
+    )
+    return 0
 
 
 if __name__ == "__main__":
