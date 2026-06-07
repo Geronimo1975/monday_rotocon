@@ -109,6 +109,52 @@ def col_number(item: Item, column_id: str) -> float | None:
         return None
 
 
+@dataclass(frozen=True)
+class MachineRow:
+    machine_no: str
+    machine_type: str | None
+    client: str | None
+    country: str | None
+    responsible: str | None
+    phase: str | None
+    project_status: str | None
+    procurement: str | None
+    phase_pct: float | None
+    subtask_pct: float | None
+    overall: float | None
+    deliver_text: str | None
+    fat_date: str | None
+    sat_date: str | None
+
+    @classmethod
+    def from_item(cls, item: Item) -> MachineRow:
+        return cls(
+            machine_no=item.name,
+            machine_type=col_text(item, COL_MACHINE_TYPE),
+            client=col_text(item, COL_CLIENT),
+            country=col_text(item, COL_COUNTRY),
+            responsible=col_text(item, COL_RESPONSIBLE),
+            phase=col_text(item, COL_PHASE),
+            project_status=col_text(item, COL_PROJECT_STATUS),
+            procurement=col_text(item, COL_PROCUREMENT),
+            phase_pct=col_number(item, COL_PHASE_PCT),
+            subtask_pct=col_number(item, COL_SUBTASK_PCT),
+            overall=col_number(item, COL_OVERALL),
+            deliver_text=col_text(item, COL_CALC_DELIVER),
+            fat_date=col_text(item, COL_FAT),
+            sat_date=col_text(item, COL_SAT),
+        )
+
+
+def fetch_current_machines(client: MondayClient) -> list[MachineRow]:
+    """Fetch all items on the board, keep only the Current Machines group."""
+    rows: list[MachineRow] = []
+    for item in client.items_for_board(board_id=BOARD_ID):
+        if item.group is not None and item.group.id == CURRENT_GROUP_ID:
+            rows.append(MachineRow.from_item(item))
+    return rows
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(
