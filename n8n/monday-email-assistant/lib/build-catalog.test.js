@@ -56,6 +56,16 @@ test('survives malformed settings_str without throwing', () => {
   assert.strictEqual(col.labels, undefined);
 });
 
+test('excludes auto-generated subitem boards', () => {
+  const boards = [
+    { id: 1, name: 'Europe Machine Overview', columns: [] },
+    { id: 2, name: 'Subitems of Europe Machine Overview', columns: [] },
+    { id: 3, name: 'Unterelemente von Leads', columns: [] },
+  ];
+  const c = buildCatalog(boards);
+  assert.deepStrictEqual(Object.keys(c.boards), ['1']);
+});
+
 test('empty input yields empty catalog', () => {
   assert.deepStrictEqual(buildCatalog([]), { boards: {} });
 });

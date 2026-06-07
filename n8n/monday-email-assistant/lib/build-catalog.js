@@ -3,9 +3,14 @@
 // stored values ("Germany") rather than user phrasing ("Germania").
 const LABELLED = new Set(['status', 'color', 'dropdown', 'country']);
 
+// Auto-generated subitem boards ("Subitems of X" / "Unterelemente von X") are not
+// meaningful query targets — exclude them to keep the catalog lean and focused.
+const SKIP_BOARD = /^(subitems of |unterelemente von )/i;
+
 function buildCatalog(boards) {
   const out = { boards: {} };
   for (const b of boards || []) {
+    if (b.name && SKIP_BOARD.test(b.name)) continue;
     const columns = {};
     for (const c of b.columns || []) {
       const col = { id: c.id, title: c.title, type: c.type };
