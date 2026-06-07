@@ -103,6 +103,21 @@ def _row(**overrides):
     return MachineRow(**defaults)
 
 
+def _summary(**overrides):
+    from datetime import UTC, datetime
+
+    from weekly_machine_report import PortfolioSummary
+
+    defaults = dict(
+        total=3, avg_overall=42.0, critical_count=1, late_count=1,
+        discrepancy_count=1, delivery_30d_count=0, week=23,
+        generated_at=datetime(2026, 6, 7, 5, 0, tzinfo=UTC),
+        by_phase={"Production": 2, "FAT": 1},
+    )
+    defaults.update(overrides)
+    return PortfolioSummary(**defaults)
+
+
 def test_machine_row_from_item_maps_all_fields() -> None:
     from weekly_machine_report import MachineRow
 
@@ -196,3 +211,36 @@ def test_build_exceptions_sorts_critical_first() -> None:
     now = datetime(2026, 6, 7, 5, 0, tzinfo=UTC)
     exceptions = build_exceptions(rows, generated_at=now)
     assert exceptions[0].machine_no == "CRIT"
+
+
+def test_render_report_html_has_kpis_and_sections() -> None:
+    from weekly_machine_report import render_report_html
+
+    rows = [_row(machine_no="ROT200E", overall=80)]
+    excs = []
+    html = render_report_html(_summary(), excs, rows)
+    assert "Rotocon" in html
+    assert "KW23" in html
+    assert "Total machines" in html
+    assert "ROT200E" in html
+    assert "No exceptions this week" in html  # empty exception list message
+
+
+def test_render_report_html_renders_dashes_for_missing_overall() -> None:
+    from weekly_machine_report import render_report_html
+
+    rows = [_row(machine_no="NEW", overall=None, responsible=None)]
+    html = render_report_html(_summary(total=1), [], rows)
+    assert "NEW" in html
+    assert "—" in html  # null overall / responsible shown as em dash
+
+
+def test_render_report_html_lists_exceptions_when_present() -> None:
+    from weekly_machine_report import ExceptionRow, render_report_html
+
+    excs = [ExceptionRow(machine_no="CRIT", client="ACME", phase="FAT",
+                         overall=30.0, why="Project status critical", urgency=0)]
+    html = render_report_html(_summary(), excs, [_row()])
+    assert "CRIT" in html
+    assert "Project status critical" in html
+    assert "No exceptions this week" not in html

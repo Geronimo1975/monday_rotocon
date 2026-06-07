@@ -259,6 +259,136 @@ def build_exceptions(
     return out
 
 
+def _fmt_pct(value: float | None) -> str:
+    return "—" if value is None else f"{int(round(value))}%"
+
+
+def _fmt(value: str | None) -> str:
+    return escape(value) if value else "—"
+
+
+def _progress_bar(value: float | None) -> str:
+    pct = 0 if value is None else max(0, min(100, int(round(value))))
+    return (
+        "<div class='track'>"
+        f"<div class='fill' style='width:{pct}%'></div>"
+        f"<span class='barlabel'>{_fmt_pct(value)}</span>"
+        "</div>"
+    )
+
+
+_REPORT_CSS = """
+@page {
+  size: A4;
+  margin: 16mm 12mm 18mm 12mm;
+  @top-left { content: "ROTOCON · Machine Progress"; font-size: 8pt; color: #888; }
+  @top-right { content: "KW" string(kw); font-size: 8pt; color: #888; }
+  @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 8pt; color: #888; }
+  @bottom-left { content: string(genstamp); font-size: 8pt; color: #888; }
+}
+* { box-sizing: border-box; }
+body { font-family: "Helvetica Neue", Arial, sans-serif; color: #111; font-size: 9pt; }
+h1 { font-size: 16pt; margin: 0 0 2mm 0; }
+h2 { font-size: 11pt; margin: 6mm 0 2mm 0; border-bottom: 1.5pt solid #0073EA; padding-bottom: 1mm; }
+.meta { color: #555; font-size: 8pt; string-set: kw "REPLACED_KW"; }
+.kpis { display: flex; gap: 4mm; margin: 4mm 0; }
+.kpi { flex: 1; border: 0.5pt solid #ccc; border-top: 2.5pt solid #0073EA; padding: 2mm 3mm; }
+.kpi .num { font-size: 15pt; font-weight: bold; font-family: "Courier New", monospace; }
+.kpi .lbl { font-size: 7.5pt; color: #666; text-transform: uppercase; letter-spacing: 0.3pt; }
+table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+th { background: #f2f4f7; text-align: left; padding: 1.5mm 2mm; border-bottom: 1pt solid #ccc; }
+td { padding: 1.5mm 2mm; border-bottom: 0.5pt solid #e6e6e6; vertical-align: middle; }
+td.mono, th.mono { font-family: "Courier New", monospace; text-align: right; }
+.badge { display: inline-block; padding: 0.3mm 1.6mm; border-radius: 2pt; color: #fff; font-size: 7pt; }
+.b-critical { background: #df2f4a; } .b-late { background: #ff6d3b; }
+.b-ok { background: #037f4c; } .b-hold { background: #c4c4c4; color:#222; }
+.b-proc { background: #ff007f; }
+.track { position: relative; height: 9pt; background: #eee; border-radius: 2pt; width: 80pt; }
+.fill { position: absolute; left:0; top:0; bottom:0; background: #0073EA; border-radius: 2pt; }
+.barlabel { position: absolute; right: 2pt; top: 0.5pt; font-size: 6.5pt; font-family: "Courier New", monospace; }
+.empty { color: #037f4c; font-style: italic; padding: 2mm 0; }
+"""
+
+_BADGE_CLASS = {
+    "critical": "b-critical",
+    "late delivery": "b-late",
+    "ok": "b-ok",
+    "on hold": "b-hold",
+    "open procurement": "b-proc",
+}
+
+
+def _status_badge(status: str | None) -> str:
+    if not status:
+        return "—"
+    cls = _BADGE_CLASS.get(status, "b-hold")
+    return f"<span class='badge {cls}'>{escape(status)}</span>"
+
+
+def render_report_html(
+    summary: PortfolioSummary,
+    exceptions: list[ExceptionRow],
+    machines: list[MachineRow],
+) -> str:
+    stamp = summary.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+    css = _REPORT_CSS.replace("REPLACED_KW", str(summary.week))
+
+    if exceptions:
+        exc_rows = "".join(
+            f"<tr><td class='mono'>{escape(e.machine_no)}</td>"
+            f"<td>{_fmt(e.client)}</td><td>{_fmt(e.phase)}</td>"
+            f"<td class='mono'>{_fmt_pct(e.overall)}</td>"
+            f"<td>{escape(e.why)}</td></tr>"
+            for e in exceptions
+        )
+        exc_block = (
+            "<table><thead><tr><th class='mono'>Machine</th><th>Client</th>"
+            "<th>Phase</th><th class='mono'>Overall</th><th>Why</th></tr></thead>"
+            f"<tbody>{exc_rows}</tbody></table>"
+        )
+    else:
+        exc_block = "<p class='empty'>No exceptions this week ✅</p>"
+
+    machine_rows = "".join(
+        f"<tr><td class='mono'>{escape(m.machine_no)}</td>"
+        f"<td>{_fmt(m.client)}</td><td>{_fmt(m.machine_type)}</td>"
+        f"<td>{_fmt(m.responsible)}</td><td>{_fmt(m.phase)}</td>"
+        f"<td>{_status_badge(m.project_status)}</td>"
+        f"<td>{_progress_bar(m.overall)}</td></tr>"
+        for m in sorted(machines, key=lambda r: (r.overall is None, -(r.overall or 0)))
+    )
+
+    return f"""\
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><style>{css}
+.meta {{ string-set: kw "{summary.week}", genstamp "{stamp}"; }}
+</style></head>
+<body>
+  <h1>Machine Progress Report</h1>
+  <div class="meta">Rotocon · Europe Machine Overview · KW{summary.week} · generated {stamp} · board {BOARD_ID}</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="num">{summary.total}</div><div class="lbl">Total machines</div></div>
+    <div class="kpi"><div class="num">{_fmt_pct(summary.avg_overall)}</div><div class="lbl">Avg overall</div></div>
+    <div class="kpi"><div class="num">{summary.critical_count}</div><div class="lbl">Critical</div></div>
+    <div class="kpi"><div class="num">{summary.late_count}</div><div class="lbl">Late delivery</div></div>
+  </div>
+
+  <h2>Needs attention</h2>
+  {exc_block}
+
+  <h2>Full portfolio (sorted by overall progress)</h2>
+  <table>
+    <thead><tr><th class='mono'>Machine</th><th>Client</th><th>Type</th>
+      <th>Responsible</th><th>Phase</th><th>Status</th><th>Overall</th></tr></thead>
+    <tbody>{machine_rows}</tbody>
+  </table>
+</body>
+</html>
+"""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(
