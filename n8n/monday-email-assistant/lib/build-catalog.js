@@ -13,7 +13,13 @@ function buildCatalog(boards) {
         try {
           const s = JSON.parse(c.settings_str);
           if (s && s.labels) {
-            col.labels = Object.values(s.labels).filter(Boolean);
+            // monday returns labels either as an array of {id,label,...} objects
+            // (modern API) or as an {id: "label"} string map (classic). Normalise
+            // both to a flat list of label strings.
+            const raw = Array.isArray(s.labels) ? s.labels : Object.values(s.labels);
+            col.labels = raw
+              .map((v) => (v && typeof v === 'object' ? v.label : v))
+              .filter(Boolean);
           }
         } catch (e) {
           // malformed settings — skip labels, keep the column usable

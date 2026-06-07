@@ -33,6 +33,24 @@ test('extracts label set for status columns', () => {
   assert.deepStrictEqual(col.labels.sort(), ['Backlog', 'Done']);
 });
 
+test('extracts labels from the monday array-of-objects settings shape', () => {
+  // monday's real GraphQL settings_str for status columns is an array of
+  // {id,label,index,...} objects, not an {id: "label"} map. Empty labels filtered.
+  const boards = [{
+    id: 1, name: 'B',
+    columns: [{
+      id: 'color_x', title: 'Project Status', type: 'status',
+      settings_str: JSON.stringify({ labels: [
+        { id: 2, label: 'critical', index: 2 },
+        { id: 3, label: 'ok', index: 0 },
+        { id: 4, label: '', index: 3 },
+      ] }),
+    }],
+  }];
+  const col = buildCatalog(boards).boards['1'].columns['color_x'];
+  assert.deepStrictEqual(col.labels.sort(), ['critical', 'ok']);
+});
+
 test('survives malformed settings_str without throwing', () => {
   const col = buildCatalog(BOARDS).boards['5086438002'].columns['bad'];
   assert.strictEqual(col.labels, undefined);
