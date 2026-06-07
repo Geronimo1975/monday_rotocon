@@ -493,13 +493,18 @@ def post_to_n8n(
     url: str,
     token: str,
     payload: WebhookPayload | dict,
-    timeout: float = 30.0,
+    timeout: float = 60.0,
     max_attempts: int = 3,
 ) -> dict:
     """POST `payload` to the n8n webhook with header auth and bounded retry.
 
     Retries on `httpx.TransportError` with exponential backoff (1s, 2s).
     A non-2xx response raises immediately without retry.
+
+    The webhook runs in `responseNode` mode, so the client blocks until the
+    whole n8n workflow finishes (email send + best-effort Postgres). The
+    timeout is generous (60s) on purpose: the send is NOT idempotent, so a
+    premature client timeout + retry would deliver duplicate emails.
     """
     last_exc: Exception | None = None
     for attempt in range(max_attempts):
