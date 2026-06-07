@@ -646,6 +646,8 @@ def test_build_exceptions_flags_each_rule() -> None:
     assert {"CRIT", "LATE", "GAP", "SOON"} <= flagged
     crit = next(e for e in exceptions if e.machine_no == "CRIT")
     assert "critical" in crit.why.lower()
+    soon = next(e for e in exceptions if e.machine_no == "SOON")
+    assert "overall" in soon.why.lower() or "30d" in soon.why.lower()
 
 
 def test_build_exceptions_sorts_critical_first() -> None:
@@ -833,7 +835,7 @@ _REPORT_CSS = """
 body { font-family: "Helvetica Neue", Arial, sans-serif; color: #111; font-size: 9pt; }
 h1 { font-size: 16pt; margin: 0 0 2mm 0; }
 h2 { font-size: 11pt; margin: 6mm 0 2mm 0; border-bottom: 1.5pt solid #0073EA; padding-bottom: 1mm; }
-.meta { color: #555; font-size: 8pt; string-set: kw "REPLACED_KW"; }
+.meta { color: #555; font-size: 8pt; }
 .kpis { display: flex; gap: 4mm; margin: 4mm 0; }
 .kpi { flex: 1; border: 0.5pt solid #ccc; border-top: 2.5pt solid #0073EA; padding: 2mm 3mm; }
 .kpi .num { font-size: 15pt; font-weight: bold; font-family: "Courier New", monospace; }
@@ -874,7 +876,7 @@ def render_report_html(
     machines: list[MachineRow],
 ) -> str:
     stamp = summary.generated_at.strftime("%Y-%m-%d %H:%M UTC")
-    css = _REPORT_CSS.replace("REPLACED_KW", str(summary.week))
+    css = _REPORT_CSS
 
     if exceptions:
         exc_rows = "".join(
