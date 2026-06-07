@@ -155,6 +155,63 @@ def fetch_current_machines(client: MondayClient) -> list[MachineRow]:
     return rows
 
 
+def parse_deliver_date(text: str | None) -> date | None:
+    """Parse monday's Calc Deliver Date formula text (e.g. '15-Aug-2026')."""
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text.strip(), "%d-%b-%Y").date()
+    except ValueError:
+        return None
+
+
+@dataclass(frozen=True)
+class PortfolioSummary:
+    total: int
+    avg_overall: float | None
+    critical_count: int
+    late_count: int
+    discrepancy_count: int
+    delivery_30d_count: int
+    week: int
+    generated_at: datetime
+    by_phase: dict[str, int] = field(default_factory=dict)
+
+
+def _is_discrepant(row: MachineRow) -> bool:
+    if row.phase_pct is None or row.subtask_pct is None:
+        return False
+    return (row.phase_pct - row.subtask_pct) >= DISCREPANCY_THRESHOLD
+
+
+def _delivers_within_horizon(row: MachineRow, *, today: date) -> bool:
+    d = parse_deliver_date(row.deliver_text)
+    if d is None:
+        return False
+    delta = (d - today).days
+    return 0 <= delta <= DELIVERY_HORIZON_DAYS
+
+
+def compute_summary(rows: list[MachineRow], *, generated_at: datetime) -> PortfolioSummary:
+    today = generated_at.date()
+    overalls = [r.overall for r in rows if r.overall is not None]
+    by_phase: dict[str, int] = {}
+    for r in rows:
+        key = r.phase or "(none)"
+        by_phase[key] = by_phase.get(key, 0) + 1
+    return PortfolioSummary(
+        total=len(rows),
+        avg_overall=round(sum(overalls) / len(overalls), 1) if overalls else None,
+        critical_count=sum(1 for r in rows if r.project_status == "critical"),
+        late_count=sum(1 for r in rows if r.project_status == "late delivery"),
+        discrepancy_count=sum(1 for r in rows if _is_discrepant(r)),
+        delivery_30d_count=sum(1 for r in rows if _delivers_within_horizon(r, today=today)),
+        week=generated_at.isocalendar().week,
+        generated_at=generated_at,
+        by_phase=by_phase,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(

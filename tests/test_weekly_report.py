@@ -89,6 +89,20 @@ def _item(**overrides):
     )
 
 
+def _row(**overrides):
+    from weekly_machine_report import MachineRow
+
+    defaults = dict(
+        machine_no="ROT200E", machine_type="RDF340", client="Valley Co",
+        country="Germany", responsible="Metin Ertem", phase="Production",
+        project_status="ok", procurement="All on Order",
+        phase_pct=40.0, subtask_pct=30.0, overall=36.0,
+        deliver_text="15-Aug-2026", fat_date=None, sat_date=None,
+    )
+    defaults.update(overrides)
+    return MachineRow(**defaults)
+
+
 def test_machine_row_from_item_maps_all_fields() -> None:
     from weekly_machine_report import MachineRow
 
@@ -112,3 +126,36 @@ def test_fetch_current_machines_filters_to_topics_group() -> None:
 
     rows = fetch_current_machines(FakeClient())  # type: ignore[arg-type]
     assert [r.machine_no for r in rows] == ["A", "C"]
+
+
+def test_parse_deliver_date_handles_monday_formula_format() -> None:
+    from datetime import date
+
+    from weekly_machine_report import parse_deliver_date
+
+    assert parse_deliver_date("15-Aug-2026") == date(2026, 8, 15)
+    assert parse_deliver_date("") is None
+    assert parse_deliver_date(None) is None
+    assert parse_deliver_date("not a date") is None
+
+
+def test_compute_summary_counts_kpis() -> None:
+    from datetime import UTC, datetime
+
+    from weekly_machine_report import compute_summary
+
+    rows = [
+        _row(overall=80, project_status="ok", phase_pct=80, subtask_pct=78),
+        _row(overall=20, project_status="critical", phase_pct=60, subtask_pct=5),  # discrepancy 55
+        _row(overall=50, project_status="late delivery", phase_pct=50, subtask_pct=50),
+        _row(overall=None, project_status="on hold", phase_pct=None, subtask_pct=None),
+    ]
+    now = datetime(2026, 6, 7, 5, 0, tzinfo=UTC)
+    summary = compute_summary(rows, generated_at=now)
+
+    assert summary.total == 4
+    assert summary.critical_count == 1
+    assert summary.late_count == 1
+    assert summary.discrepancy_count == 1            # the 60-vs-5 machine
+    assert summary.avg_overall == 50.0               # mean of 80,20,50 (None excluded)
+    assert summary.week == now.isocalendar().week
