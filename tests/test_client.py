@@ -4,6 +4,18 @@ import respx
 from monday_rotocon import MondayClient
 
 
+def test_boards_from_json_fixture(fixture_loader, dummy_token):
+    """Exercise the shared `fixture_loader`/`dummy_token` conftest fixtures
+    against a stored API response, keeping a large JSON blob out of the test."""
+    data = fixture_loader("board_sales")
+    with respx.mock(base_url="https://api.monday.com") as router:
+        router.post("/v2").respond(json=data)
+        client = MondayClient(api_token=dummy_token)
+        boards = list(client.boards(ids=["12345"]))
+        assert [b.name for b in boards] == ["Sales Pipeline"]
+        assert {c.title for c in boards[0].columns} == {"Status", "Owner"}
+
+
 def test_boards_returns_typed_list():
     data = {
         "data": {

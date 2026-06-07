@@ -1,0 +1,15 @@
+{
+  "data": {
+    "boards": [
+      {
+        "id": "12345",
+        "name": "Sales Pipeline",
+        "workspace_id": "100",
+        "columns": [
+          {"id": "status_1", "title": "Status", "type": "status", "settings_str": "{}"},
+          {"id": "people_1", "title": "Owner", "type": "people", "settings_str": "{}"}
+        ]
+      }
+    ]
+  }
+}

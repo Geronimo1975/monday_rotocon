@@ -11,50 +11,19 @@ Uses only the Python stdlib so it works before `uv sync` has been run.
 
 from __future__ import annotations
 
+import functools
 import json
 import sys
 import time
-import urllib.error
-import urllib.request
-from pathlib import Path
 
-API_URL = "https://api.monday.com/v2"
-API_VERSION = "2024-10"
+from _monday_rest import gql as _gql
+from _monday_rest import load_token
+
 BOARD_ID = 5096182046
 ACCOUNT_SLUG = "rotocon-world"
 
-
-def load_token() -> str:
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if not env_path.exists():
-        sys.exit(f"FATAL: no .env at {env_path}")
-    for line in env_path.read_text().splitlines():
-        if line.startswith("MONDAY_API_TOKEN="):
-            return line.split("=", 1)[1].strip()
-    sys.exit("FATAL: MONDAY_API_TOKEN not found in .env")
-
-
-def gql(token: str, query: str, variables: dict | None = None) -> dict:
-    body = json.dumps({"query": query, "variables": variables or {}}).encode()
-    req = urllib.request.Request(
-        API_URL,
-        data=body,
-        method="POST",
-        headers={
-            "Authorization": token,
-            "Content-Type": "application/json",
-            "API-Version": API_VERSION,
-            "User-Agent": "monday_rotocon-extend/0.1",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            payload = json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        sys.exit(f"HTTP {e.code}: {e.read().decode()}")
-    if payload.get("errors"):
-        sys.exit(f"GraphQL errors: {json.dumps(payload['errors'], indent=2)}")
-    return payload["data"]
+# Bind this script's User-Agent once; call sites stay `gql(token, query, vars)`.
+gql = functools.partial(_gql, user_agent="monday_rotocon-extend/0.1")
 
 
 # Column specs from spec §4.1 — title, type, defaults (JSON string for monday)

@@ -1,4 +1,76 @@
-from monday_rotocon.models import Board, ColumnValue, Item
+from datetime import datetime
+
+import pytest
+from pydantic import ValidationError
+
+from monday_rotocon.models import Board, Column, ColumnValue, Group, Item
+
+
+def test_unknown_fields_are_ignored():
+    # monday.com routinely adds fields; extra="ignore" must drop them, not fail.
+    raw = {
+        "id": "1",
+        "name": "Lead",
+        "state": "active",
+        "column_values": [],
+        "brand_new_api_field": {"nested": True},
+        "another_unexpected": 123,
+    }
+    item = Item.model_validate(raw)
+    assert item.id == "1"
+    assert not hasattr(item, "brand_new_api_field")
+
+
+def test_column_value_aliases_id_to_column_id():
+    # The API field is "id"; we expose it as column_id via alias.
+    cv = ColumnValue.model_validate({"id": "status_1", "type": "status"})
+    assert cv.column_id == "status_1"
+
+
+def test_column_value_populate_by_name_accepts_column_id():
+    # populate_by_name=True lets internal code construct by the field name too.
+    cv = ColumnValue(column_id="status_1", type="status")
+    assert cv.column_id == "status_1"
+
+
+def test_item_missing_required_field_raises():
+    with pytest.raises(ValidationError):
+        Item.model_validate({"name": "no id here"})
+
+
+def test_board_missing_required_field_raises():
+    with pytest.raises(ValidationError):
+        Board.model_validate({"name": "no id"})
+
+
+def test_item_parses_iso_datetimes_into_datetime():
+    item = Item.model_validate(
+        {
+            "id": "1",
+            "name": "x",
+            "created_at": "2026-05-10T12:00:00Z",
+            "column_values": [],
+        }
+    )
+    assert isinstance(item.created_at, datetime)
+    assert item.created_at.year == 2026
+
+
+def test_item_invalid_datetime_raises():
+    with pytest.raises(ValidationError):
+        Item.model_validate(
+            {"id": "1", "name": "x", "created_at": "not-a-date", "column_values": []}
+        )
+
+
+def test_column_settings_str_defaults_to_empty():
+    col = Column.model_validate({"id": "c1", "title": "Status", "type": "status"})
+    assert col.settings_str == ""
+
+
+def test_group_rejects_missing_title():
+    with pytest.raises(ValidationError):
+        Group.model_validate({"id": "g1"})
 
 
 def test_board_parses_minimal():

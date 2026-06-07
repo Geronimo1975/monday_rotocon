@@ -281,7 +281,7 @@ class N8nWebhookError(RuntimeError):
 
 
 def _sleep(seconds: float) -> None:
-    time.sleep(seconds)
+    time.sleep(seconds)  # pragma: no cover — wrapper; monkeypatched in tests
 
 
 def post_to_n8n(
@@ -324,7 +324,7 @@ def post_to_n8n(
         except ValueError:
             return {"status": "ok", "raw": response.text[:500]}
     # Defensive: loop should always either return or raise.
-    raise N8nWebhookError(f"unreachable; last exc: {last_exc!r}")
+    raise N8nWebhookError(f"unreachable; last exc: {last_exc!r}")  # pragma: no cover
 
 
 class BoardNotFoundError(RuntimeError):

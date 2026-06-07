@@ -94,7 +94,7 @@ class MondayClient:
                 raise MondayAPIError(msgs)
             result: dict[str, Any] = body.get("data", {})
             return result
-        raise MondayAPIError("unreachable")
+        raise MondayAPIError("unreachable")  # pragma: no cover — defensive
 
     def boards(self, *, ids: list[str]) -> Iterator[Board]:
         """Fetch boards by ID. Returns iterator of typed Board models."""
