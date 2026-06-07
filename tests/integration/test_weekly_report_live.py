@@ -20,7 +20,6 @@ def test_weekly_report_renders_real_board_to_pdf(tmp_path, monkeypatch) -> None:
     if not os.environ.get("MONDAY_API_TOKEN"):
         pytest.skip("missing MONDAY_API_TOKEN")
 
-    from monday_rotocon import MondayClient
     from weekly_machine_report import (
         build_exceptions,
         compute_summary,
@@ -28,6 +27,8 @@ def test_weekly_report_renders_real_board_to_pdf(tmp_path, monkeypatch) -> None:
         render_pdf,
         render_report_html,
     )
+
+    from monday_rotocon import MondayClient
 
     monkeypatch.chdir(tmp_path)
     from datetime import UTC, datetime
