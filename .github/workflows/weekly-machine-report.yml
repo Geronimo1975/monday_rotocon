@@ -2,12 +2,35 @@ name: Weekly Machine Report
 
 on:
   schedule:
-    # 05:00 UTC Monday ≈ 07:00 Europe/Bucharest (winter) / 08:00 (summer).
-    - cron: "0 5 * * 1"
+    # GitHub cron is UTC with no DST. 08:00 Europe/Berlin is 06:00 UTC in
+    # summer (CEST) and 07:00 UTC in winter (CET). We fire at both times; the
+    # "gate" job below lets only the run that is actually 08:00 in Berlin proceed.
+    - cron: "0 6 * * 1"
+    - cron: "0 7 * * 1"
   workflow_dispatch: {}
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — proceeding."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(TZ=Europe/Berlin date +%H)" = "08" ]; then
+            echo "Berlin local time is 08:xx — proceeding."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Berlin local hour is $(TZ=Europe/Berlin date +%H), not 08 — skipping this trigger."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   send-report:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
