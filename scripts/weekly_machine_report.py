@@ -483,6 +483,56 @@ def build_payload(
     )
 
 
+class N8nWebhookError(RuntimeError):
+    """Raised when the n8n webhook fails after all retries."""
+
+
+def _sleep(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def post_to_n8n(
+    *,
+    url: str,
+    token: str,
+    payload: WebhookPayload | dict,
+    timeout: float = 30.0,
+    max_attempts: int = 3,
+) -> dict:
+    """POST `payload` to the n8n webhook with header auth and bounded retry.
+
+    Retries on `httpx.TransportError` with exponential backoff (1s, 2s).
+    A non-2xx response raises immediately without retry.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            response = httpx.post(
+                url,
+                json=payload,
+                headers={"X-Report-Token": token, "Content-Type": "application/json"},
+                timeout=timeout,
+            )
+        except httpx.TransportError as exc:
+            last_exc = exc
+            if attempt < max_attempts - 1:
+                _sleep(1.0 * (2**attempt))
+                continue
+            raise N8nWebhookError(
+                f"transport error after {max_attempts} attempts: {exc!r}"
+            ) from exc
+
+        if response.status_code // 100 != 2:
+            raise N8nWebhookError(
+                f"n8n webhook returned {response.status_code}: {response.text[:500]}"
+            )
+        try:
+            return response.json()
+        except ValueError:
+            return {"status": "ok", "raw": response.text[:500]}
+    raise N8nWebhookError(f"unreachable; last exc: {last_exc!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(
