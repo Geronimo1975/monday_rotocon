@@ -389,6 +389,20 @@ def render_report_html(
 """
 
 
+def render_pdf(html: str) -> bytes:
+    """Render an HTML string to PDF bytes via WeasyPrint.
+
+    WeasyPrint is imported lazily so the rest of the module (and the unit
+    test suite) loads without its system libraries installed.
+    """
+    from weasyprint import HTML  # noqa: PLC0415  (intentional lazy import)
+
+    pdf = HTML(string=html).write_pdf()
+    if pdf is None:  # pragma: no cover - write_pdf() returns bytes when no target
+        raise RuntimeError("WeasyPrint returned no PDF bytes")
+    return pdf
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(

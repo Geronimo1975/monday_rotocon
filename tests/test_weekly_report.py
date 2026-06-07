@@ -244,3 +244,14 @@ def test_render_report_html_lists_exceptions_when_present() -> None:
     assert "CRIT" in html
     assert "Project status critical" in html
     assert "No exceptions this week" not in html
+
+
+def test_render_pdf_produces_pdf_bytes() -> None:
+    import pytest
+
+    pytest.importorskip("weasyprint")  # skip if system libs absent
+    from weekly_machine_report import render_pdf
+
+    pdf = render_pdf("<html><body><h1>hi</h1></body></html>")
+    assert isinstance(pdf, bytes)
+    assert pdf[:5] == b"%PDF-"
