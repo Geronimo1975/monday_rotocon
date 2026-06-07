@@ -7,12 +7,17 @@ const LABELLED = new Set(['status', 'color', 'dropdown', 'country']);
 // meaningful query targets — exclude them to keep the catalog lean and focused.
 const SKIP_BOARD = /^(subitems of |unterelemente von )/i;
 
+// Column types that can't be filtered/aggregated on — dropping them shrinks the
+// catalog (fewer prompt tokens, lower rate-limit pressure) without losing query power.
+const SKIP_COL_TYPE = new Set(['file', 'doc', 'direct_doc', 'subtasks', 'button']);
+
 function buildCatalog(boards) {
   const out = { boards: {} };
   for (const b of boards || []) {
     if (b.name && SKIP_BOARD.test(b.name)) continue;
     const columns = {};
     for (const c of b.columns || []) {
+      if (SKIP_COL_TYPE.has(c.type)) continue;
       const col = { id: c.id, title: c.title, type: c.type };
       if (LABELLED.has(c.type) && c.settings_str) {
         try {

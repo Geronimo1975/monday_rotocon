@@ -56,6 +56,21 @@ test('survives malformed settings_str without throwing', () => {
   assert.strictEqual(col.labels, undefined);
 });
 
+test('excludes non-queryable column types (file/doc/subtasks/button)', () => {
+  const boards = [{
+    id: 9, name: 'B',
+    columns: [
+      { id: 'name', title: 'Name', type: 'name', settings_str: '{}' },
+      { id: 'file_x', title: 'Drawings', type: 'file', settings_str: '{}' },
+      { id: 'subtasks_x', title: 'Subitems', type: 'subtasks', settings_str: '{}' },
+      { id: 'doc_x', title: 'Doc', type: 'direct_doc', settings_str: '{}' },
+      { id: 'text_x', title: 'Client', type: 'text', settings_str: '{}' },
+    ],
+  }];
+  const cols = buildCatalog(boards).boards['9'].columns;
+  assert.deepStrictEqual(Object.keys(cols).sort(), ['name', 'text_x']);
+});
+
 test('excludes auto-generated subitem boards', () => {
   const boards = [
     { id: 1, name: 'Europe Machine Overview', columns: [] },
