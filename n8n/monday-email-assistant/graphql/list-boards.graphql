@@ -1,0 +1,12 @@
+query ($page: Int!) {
+  boards(limit: 50, page: $page, state: active) {
+    id
+    name
+    columns {
+      id
+      title
+      type
+      settings_str
+    }
+  }
+}

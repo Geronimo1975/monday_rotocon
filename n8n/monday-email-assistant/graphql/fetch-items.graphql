@@ -1,0 +1,17 @@
+query ($boardId: ID!, $cursor: String, $columnIds: [String!]) {
+  boards(ids: [$boardId]) {
+    items_page(limit: 100, cursor: $cursor) {
+      cursor
+      items {
+        id
+        name
+        group { id title }
+        column_values(ids: $columnIds) {
+          id
+          text
+          value
+        }
+      }
+    }
+  }
+}
