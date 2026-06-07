@@ -218,6 +218,8 @@ def test_build_exceptions_flags_each_rule() -> None:
     assert {"CRIT", "LATE", "GAP", "SOON"} <= flagged
     crit = next(e for e in exceptions if e.machine_no == "CRIT")
     assert "critical" in crit.why.lower()
+    soon = next(e for e in exceptions if e.machine_no == "SOON")
+    assert "overall" in soon.why.lower() or "30d" in soon.why.lower()
 
 
 def test_build_exceptions_sorts_critical_first() -> None:
