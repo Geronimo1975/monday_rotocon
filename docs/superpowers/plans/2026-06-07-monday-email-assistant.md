@@ -640,7 +640,7 @@ Expected: PASS — 10 tests.
 - [ ] **Step 5: Run the whole suite and commit**
 
 Run: `node --test n8n/monday-email-assistant/lib/*.test.js`
-Expected: PASS — all four lib modules (30 tests total).
+Expected: PASS — all four lib modules (43 tests total after review hardening).
 
 ```bash
 git add n8n/monday-email-assistant/lib/aggregate.js n8n/monday-email-assistant/lib/aggregate.test.js
