@@ -4,7 +4,7 @@ Versioned source for the n8n workflow **`monday-email-assistant`** (id
 `nVN78RTzTmYRVLLK`, on `n8n.rotocon.world`). The JS in `lib/` is unit-tested here,
 then embedded into n8n **Code** nodes (function bodies are self-contained; no requires).
 
-Email a question with `@ask` in the subject → the bot replies in-thread, in the
+Email a question with `@ask_George` in the subject → the bot replies in-thread, in the
 question's language, answering from live monday.com data with deterministic counts.
 
 ## Architecture (as built)
