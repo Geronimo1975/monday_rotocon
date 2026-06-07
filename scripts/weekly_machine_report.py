@@ -403,6 +403,30 @@ def render_pdf(html: str) -> bytes:
     return pdf
 
 
+def render_email_summary_html(summary: PortfolioSummary) -> str:
+    """Short inline-styled email body — KPIs + 'see attached PDF'."""
+    stamp = summary.generated_at.strftime("%Y-%m-%d %H:%M UTC")
+    chip = (
+        "display:inline-block;padding:6px 12px;margin:3px;border-radius:6px;"
+        "background:#f2f4f7;font-size:14px;"
+    )
+    return f"""\
+<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#111;max-width:560px;">
+  <h2 style="font-size:17px;margin:0 0 4px;">Rotocon · Machine Progress · KW{summary.week}</h2>
+  <div style="color:#666;font-size:12px;margin-bottom:12px;">Generated {stamp}</div>
+  <div>
+    <span style="{chip}"><b>{summary.total}</b> machines</span>
+    <span style="{chip}">Avg <b>{_fmt_pct(summary.avg_overall)}</b></span>
+    <span style="{chip}">Critical <b>{summary.critical_count}</b></span>
+    <span style="{chip}">Late <b>{summary.late_count}</b></span>
+  </div>
+  <p style="font-size:14px;margin-top:16px;">
+    The full engineering report is <b>attached as a PDF</b>.
+  </p>
+</div>
+"""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(

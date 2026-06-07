@@ -255,3 +255,14 @@ def test_render_pdf_produces_pdf_bytes() -> None:
     pdf = render_pdf("<html><body><h1>hi</h1></body></html>")
     assert isinstance(pdf, bytes)
     assert pdf[:5] == b"%PDF-"
+
+
+def test_render_email_summary_is_short_and_mentions_attachment() -> None:
+    from weekly_machine_report import render_email_summary_html
+
+    html = render_email_summary_html(_summary(critical_count=2, total=10))
+    assert "KW23" in html
+    assert "10" in html           # total
+    assert "2" in html            # critical
+    assert "attached" in html.lower()
+    assert "<table" not in html   # body stays short, no full table
