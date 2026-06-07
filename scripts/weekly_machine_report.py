@@ -212,6 +212,53 @@ def compute_summary(rows: list[MachineRow], *, generated_at: datetime) -> Portfo
     )
 
 
+@dataclass(frozen=True)
+class ExceptionRow:
+    machine_no: str
+    client: str | None
+    phase: str | None
+    overall: float | None
+    why: str
+    urgency: int   # lower sorts first
+
+
+def build_exceptions(
+    rows: list[MachineRow], *, generated_at: datetime
+) -> list[ExceptionRow]:
+    """Flag machines needing attention, sorted by urgency (critical first)."""
+    today = generated_at.date()
+    out: list[ExceptionRow] = []
+    for r in rows:
+        reasons: list[str] = []
+        urgency = 9
+        if r.project_status == "critical":
+            reasons.append("Project status critical")
+            urgency = min(urgency, 0)
+        if r.project_status == "late delivery":
+            reasons.append("Late delivery")
+            urgency = min(urgency, 1)
+        if _is_discrepant(r):
+            gap = int((r.phase_pct or 0) - (r.subtask_pct or 0))
+            reasons.append(f"Phase ahead of subtasks (gap {gap})")
+            urgency = min(urgency, 2)
+        if _delivers_within_horizon(r, today=today) and (r.overall or 0) < DELIVERY_OVERALL_FLOOR:
+            reasons.append(f"Delivers <={DELIVERY_HORIZON_DAYS}d, overall {int(r.overall or 0)}%")
+            urgency = min(urgency, 3)
+        if reasons:
+            out.append(
+                ExceptionRow(
+                    machine_no=r.machine_no,
+                    client=r.client,
+                    phase=r.phase,
+                    overall=r.overall,
+                    why="; ".join(reasons),
+                    urgency=urgency,
+                )
+            )
+    out.sort(key=lambda e: (e.urgency, e.machine_no))
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Weekly machine PDF report")
     parser.add_argument(

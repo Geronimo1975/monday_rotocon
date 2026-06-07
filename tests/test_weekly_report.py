@@ -159,3 +159,40 @@ def test_compute_summary_counts_kpis() -> None:
     assert summary.discrepancy_count == 1            # the 60-vs-5 machine
     assert summary.avg_overall == 50.0               # mean of 80,20,50 (None excluded)
     assert summary.week == now.isocalendar().week
+
+
+def test_build_exceptions_flags_each_rule() -> None:
+    from datetime import UTC, datetime
+
+    from weekly_machine_report import build_exceptions
+
+    rows = [
+        _row(machine_no="OK", overall=80, project_status="ok", phase_pct=80, subtask_pct=78),
+        _row(machine_no="CRIT", overall=30, project_status="critical"),
+        _row(machine_no="LATE", overall=40, project_status="late delivery"),
+        _row(machine_no="GAP", overall=50, project_status="ok", phase_pct=70, subtask_pct=10),
+        _row(machine_no="SOON", overall=60, project_status="ok", phase_pct=60,
+             subtask_pct=55, deliver_text="20-Jun-2026"),
+    ]
+    now = datetime(2026, 6, 7, 5, 0, tzinfo=UTC)
+    exceptions = build_exceptions(rows, generated_at=now)
+
+    flagged = {e.machine_no for e in exceptions}
+    assert "OK" not in flagged
+    assert {"CRIT", "LATE", "GAP", "SOON"} <= flagged
+    crit = next(e for e in exceptions if e.machine_no == "CRIT")
+    assert "critical" in crit.why.lower()
+
+
+def test_build_exceptions_sorts_critical_first() -> None:
+    from datetime import UTC, datetime
+
+    from weekly_machine_report import build_exceptions
+
+    rows = [
+        _row(machine_no="LATE", project_status="late delivery", overall=40),
+        _row(machine_no="CRIT", project_status="critical", overall=30),
+    ]
+    now = datetime(2026, 6, 7, 5, 0, tzinfo=UTC)
+    exceptions = build_exceptions(rows, generated_at=now)
+    assert exceptions[0].machine_no == "CRIT"
