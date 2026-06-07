@@ -30,6 +30,7 @@ deterministically and computes the aggregate; the LLM only phrases the result.
 | Authorization | **Explicit allowlist** | Bot returns internal data; only listed addresses get answers. Others ignored (optional polite refusal). Phase 0 allowlist = george@ only. |
 | LLM provider | **Claude (Anthropic)** | Strong at structured (JSON) generation and multilingual phrasing. Requires a new Anthropic credential in n8n. |
 | Reply language | **Mirror the question** | RO→RO, EN→EN, DE→DE. Natural for the multilingual team. |
+| Reply recipients | **`To:` asker, `Cc:` george@** | The asker gets the answer; george@ is copied on every reply for oversight. Cc dropped when the asker is george@ (no duplicate). |
 | Q&A logging | **None** | No audit/history store for v1; ask-and-answer only. (Re-add later if debugging needs it.) |
 
 ## Phased delivery (test on george@ first)
@@ -118,7 +119,7 @@ Filter + Aggregate (Code — apply filters to real rows, compute count/avg/sum/l
    ↓
 Claude #2 — Phrase (question + structured result → answer in detected language)
    ↓
-Send Reply (Gmail node — reply in same thread, keeps Re: subject; Re: guard prevents loop)
+Send Reply (Gmail node — To: asker, Cc: george@; same thread, keeps Re: subject; Re: guard prevents loop)
 ```
 
 ### Considered alternatives (rejected)
@@ -206,11 +207,15 @@ short, direct answer in `language`. Includes light provenance ("based on *Europe
 Machine Overview*, Current Machines group"). If `truncated`, says so.
 
 ### Send Reply
-Gmail node. Replies **in the same thread** (uses the trigger's
-`threadId`/`Message-ID` → `In-Reply-To`/`References`), keeping the `Re: …` subject so
-the thread stays intact. The reply therefore still contains `@ask`, but the `Re:`
-guard above ignores it on the next poll, so it never re-triggers. Plain text or light
-HTML; v1 plain text is fine. Phase 1 sends from the `ask@` credential.
+Gmail node. **`To:` the original asker** (the question's `from`), **`Cc:`
+george@rotocon.world on every reply** (oversight — george sees every answer the bot
+gives). Replies **in the same thread** (uses the trigger's `threadId`/`Message-ID` →
+`In-Reply-To`/`References`), keeping the `Re: …` subject so the thread stays intact.
+The reply therefore still contains `@ask`, but the `Re:` guard above ignores it on the
+next poll, so it never re-triggers — and the Cc to george@ is safe for the same
+reason. When the asker **is** george@ (the Phase 0 self-test), the redundant Cc is
+dropped so george doesn't get a duplicate copy. Plain text or light HTML; v1 plain
+text is fine. Phase 1 sends from the `ask@` credential.
 
 ## Security & safety
 
