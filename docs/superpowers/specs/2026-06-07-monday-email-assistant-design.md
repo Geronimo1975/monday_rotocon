@@ -26,20 +26,44 @@ deterministically and computes the aggregate; the LLM only phrases the result.
 |---|---|---|
 | Data scope | **Whole monday workspace** | Maximum usefulness; any board is fair game. Handled via a cached board/column catalog the LLM picks from. |
 | Answering engine | **LLM → structured plan → deterministic execution → LLM phrasing** | Counts/aggregates computed by n8n on real rows, not by the model. Safer than an agentic free-form loop. |
-| Inbound mailbox | **Dedicated `ask@rotocon.world`** | Isolated from personal inboxes; clean sender semantics. Requires a new Google Workspace mailbox + its own Gmail OAuth credential. |
-| Authorization | **Explicit allowlist** | Bot returns internal data; only listed addresses get answers. Others ignored (optional polite refusal). |
+| Inbound mailbox | **Phased: test on `george+ask@` first, then dedicated `ask@rotocon.world`** | Test reuses george@'s existing mailbox + Gmail credential via a plus-alias (zero admin setup); production graduates to a dedicated mailbox. See "Phased delivery". |
+| Authorization | **Explicit allowlist** | Bot returns internal data; only listed addresses get answers. Others ignored (optional polite refusal). Phase 0 allowlist = george@ only. |
 | LLM provider | **Claude (Anthropic)** | Strong at structured (JSON) generation and multilingual phrasing. Requires a new Anthropic credential in n8n. |
 | Reply language | **Mirror the question** | RO→RO, EN→EN, DE→DE. Natural for the multilingual team. |
 | Q&A logging | **None** | No audit/history store for v1; ask-and-answer only. (Re-add later if debugging needs it.) |
 
-## Prerequisites (admin, done by george@ before build)
+## Phased delivery (test on george@ first)
 
-1. Create mailbox `ask@rotocon.world` in Google Workspace.
-2. Add a **Gmail OAuth2** credential in n8n authenticated as `ask@rotocon.world`
+The mailbox is the only piece needing Google Workspace admin work, so it is
+deferred. We validate the whole pipeline on george@'s existing inbox first.
+
+- **Phase 0 — Test (reuse george@):** the assistant listens on george@'s existing
+  mailbox via the existing `Gmail account` credential (id `ahEoxGuMkBRjQ9YF`).
+  Question emails are addressed to the **plus-alias `george+ask@rotocon.world`**
+  (delivered to george@'s inbox); the Gmail Trigger filters on
+  `to: george+ask@rotocon.world` so only those emails fire the workflow. The reply
+  goes to `george@` (no `+ask`), so the bot's own reply never re-triggers it — no
+  loop. Allowlist for the test = `george@rotocon.world` only.
+  **Only new prerequisite for Phase 0: an Anthropic credential.** Gmail, Monday API,
+  and Postgres credentials already exist.
+- **Phase 1 — Production (dedicated mailbox):** swap to `ask@rotocon.world` and its
+  own Gmail OAuth2 credential, and expand the allowlist to the team. This is a
+  trigger-credential + recipient-filter change only — the plan/execute/phrase core
+  is unchanged. The trigger's address filter is kept in one config node so the
+  switch is a single edit.
+
+## Prerequisites
+
+**For Phase 0 (test):**
+1. Add an **Anthropic** credential in n8n (API key). *Only blocker.*
+
+**For Phase 1 (production), additionally:**
+2. Create mailbox `ask@rotocon.world` in Google Workspace.
+3. Add a **Gmail OAuth2** credential in n8n authenticated as `ask@rotocon.world`
    (separate from the existing `Gmail account` for george@, id `ahEoxGuMkBRjQ9YF`).
-3. Add an **Anthropic** credential in n8n (API key).
 
-Reused existing credentials: `Monday API Token` (httpHeaderAuth, `NvEH5iJQgsGArHfy`),
+Reused existing credentials: `Gmail account` (gmailOAuth2, `ahEoxGuMkBRjQ9YF`, used
+as-is in Phase 0), `Monday API Token` (httpHeaderAuth, `NvEH5iJQgsGArHfy`),
 `Postgres account` (`l5HHFXvW5o8FdBkj`, for the schema-catalog cache only).
 n8n instance: `https://n8n.rotocon.world`.
 
@@ -69,7 +93,8 @@ keeping per-question latency and API cost low.
 ### B. `monday-email-assistant` (the chatbot)
 
 ```
-Gmail Trigger (mailbox ask@rotocon.world, polling)
+Gmail Trigger (polling; Phase 0: george@ inbox filtered to to:george+ask@,
+                         Phase 1: ask@rotocon.world mailbox)
    ↓
 Guard Sender (Code/IF — sender ∈ allowlist?)
    ├─ no → (optional) send polite refusal → STOP   (no data leaves)
@@ -88,7 +113,7 @@ Filter + Aggregate (Code — apply filters to real rows, compute count/avg/sum/l
    ↓
 Claude #2 — Phrase (question + structured result → answer in detected language)
    ↓
-Send Reply (Gmail node, ask@ credential — reply in the same thread)
+Send Reply (Gmail node — reply in the same thread; Phase 0 from george@, Phase 1 from ask@)
 ```
 
 ### Considered alternatives (rejected)
@@ -166,9 +191,11 @@ short, direct answer in `language`. Includes light provenance ("based on *Europe
 Machine Overview*, Current Machines group"). If `truncated`, says so.
 
 ### Send Reply
-Gmail node on the `ask@` credential. Replies **in the same thread** (uses the
-trigger's `threadId`/`Message-ID` → `In-Reply-To`/`References`). Plain text or light
-HTML; v1 plain text is fine.
+Gmail node. Replies **in the same thread** (uses the trigger's
+`threadId`/`Message-ID` → `In-Reply-To`/`References`). Plain text or light HTML; v1
+plain text is fine. In Phase 0 it sends from george@ to george@ (no `+ask`), so the
+reply does not match the `to:george+ask@` trigger filter and cannot re-trigger the
+workflow. Phase 1 sends from the `ask@` credential.
 
 ## Security & safety
 
@@ -204,7 +231,11 @@ HTML; v1 plain text is fine.
    - A non-allowlisted sender → no data leaves (refusal or silence per config).
 4. Verify replies thread correctly (land under the original email).
 5. Spot-check 2 counts against the board manually.
-6. Only after sign-off: activate the catalog-refresh schedule and the Gmail trigger.
+6. All of the above runs in **Phase 0** (trigger on `george+ask@`, reusing the
+   existing Gmail credential, allowlist = george@).
+7. After sign-off on Phase 0: activate the catalog-refresh schedule and the Gmail
+   trigger. Graduating to **Phase 1** (dedicated `ask@` mailbox + expanded allowlist)
+   is a credential/recipient-filter swap done separately once the mailbox exists.
 
 ## Deliverables
 
