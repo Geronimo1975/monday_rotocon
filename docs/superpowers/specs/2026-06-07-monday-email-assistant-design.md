@@ -26,7 +26,7 @@ deterministically and computes the aggregate; the LLM only phrases the result.
 |---|---|---|
 | Data scope | **Whole monday workspace** | Maximum usefulness; any board is fair game. Handled via a cached board/column catalog the LLM picks from. |
 | Answering engine | **LLM → structured plan → deterministic execution → LLM phrasing** | Counts/aggregates computed by n8n on real rows, not by the model. Safer than an agentic free-form loop. |
-| Inbound mailbox | **Phased: test on `george+ask@` first, then dedicated `ask@rotocon.world`** | Test reuses george@'s existing mailbox + Gmail credential via a plus-alias (zero admin setup); production graduates to a dedicated mailbox. See "Phased delivery". |
+| Inbound mailbox | **Phased: test on george@ (subject token `@ask`) first, then dedicated `ask@rotocon.world`** | Test reuses george@'s existing mailbox + Gmail credential, marking questions with `@ask` in the subject (zero admin setup); production graduates to a dedicated mailbox. See "Phased delivery". |
 | Authorization | **Explicit allowlist** | Bot returns internal data; only listed addresses get answers. Others ignored (optional polite refusal). Phase 0 allowlist = george@ only. |
 | LLM provider | **Claude (Anthropic)** | Strong at structured (JSON) generation and multilingual phrasing. Requires a new Anthropic credential in n8n. |
 | Reply language | **Mirror the question** | RO→RO, EN→EN, DE→DE. Natural for the multilingual team. |
@@ -38,12 +38,15 @@ The mailbox is the only piece needing Google Workspace admin work, so it is
 deferred. We validate the whole pipeline on george@'s existing inbox first.
 
 - **Phase 0 — Test (reuse george@):** the assistant listens on george@'s existing
-  mailbox via the existing `Gmail account` credential (id `ahEoxGuMkBRjQ9YF`).
-  Question emails are addressed to the **plus-alias `george+ask@rotocon.world`**
-  (delivered to george@'s inbox); the Gmail Trigger filters on
-  `to: george+ask@rotocon.world` so only those emails fire the workflow. The reply
-  goes to `george@` (no `+ask`), so the bot's own reply never re-triggers it — no
-  loop. Allowlist for the test = `george@rotocon.world` only.
+  mailbox via the existing `Gmail account` credential (id `ahEoxGuMkBRjQ9YF`). A
+  message is treated as a question when its **subject contains the token `@ask`**
+  (write a normal email, drop `@ask` in the subject). The reply keeps `Re: … @ask`
+  in its subject, which would otherwise re-trigger the workflow, so the guard
+  **ignores any email whose subject starts with `Re:`** — the bot's own reply is
+  skipped and there is no loop. Because Gmail search tends to drop punctuation, the
+  trigger query is broad and the exact `@ask` token is verified in an IF node right
+  after the trigger (not in the trigger query). Allowlist for the test =
+  `george@rotocon.world` only.
   **Only new prerequisite for Phase 0: an Anthropic credential.** Gmail, Monday API,
   and Postgres credentials already exist.
 - **Phase 1 — Production (dedicated mailbox):** swap to `ask@rotocon.world` and its
@@ -93,9 +96,11 @@ keeping per-question latency and API cost low.
 ### B. `monday-email-assistant` (the chatbot)
 
 ```
-Gmail Trigger (polling; Phase 0: george@ inbox filtered to to:george+ask@,
-                         Phase 1: ask@rotocon.world mailbox)
+Gmail Trigger (polling; Phase 0: george@ inbox, Phase 1: ask@rotocon.world mailbox)
    ↓
+Guard Question (IF — subject contains "@ask" AND subject does NOT start with "Re:")
+   ├─ no → STOP   (not a question / is the bot's own reply → no loop)
+   ↓ yes
 Guard Sender (Code/IF — sender ∈ allowlist?)
    ├─ no → (optional) send polite refusal → STOP   (no data leaves)
    ↓ yes
@@ -113,7 +118,7 @@ Filter + Aggregate (Code — apply filters to real rows, compute count/avg/sum/l
    ↓
 Claude #2 — Phrase (question + structured result → answer in detected language)
    ↓
-Send Reply (Gmail node — reply in the same thread; Phase 0 from george@, Phase 1 from ask@)
+Send Reply (Gmail node — reply in same thread, keeps Re: subject; Re: guard prevents loop)
 ```
 
 ### Considered alternatives (rejected)
@@ -158,11 +163,21 @@ Claude #1 must return **only** this JSON. n8n rejects anything that fails valida
 
 ## Component detail
 
+### Guard Question
+IF node, runs before sender check. Treats the email as a question only when the
+**subject contains `@ask`** (exact token match in code, since Gmail search ignores
+punctuation) **and the subject does not start with `Re:`**. The second condition
+drops the bot's own threaded reply (`Re: … @ask`), which is what prevents the loop
+when listening and replying on the same mailbox in Phase 0. Anything else: stop.
+In Phase 1 the dedicated mailbox makes `@ask` optional, but the `Re:` guard stays as
+a cheap loop backstop.
+
 ### Guard Sender
 Reads the trigger's `from` address, lowercases, compares against an allowlist held
-in **one config node** (initial: george@, Marco, Matthias, Renelda, Metin, Nicole).
-Non-members: stop silently, or send a one-line "Sorry, this assistant only answers
-the Rotocon team" — configurable. No monday call happens for non-members.
+in **one config node** (Phase 0: george@ only; Phase 1: george@, Marco, Matthias,
+Renelda, Metin, Nicole). Non-members: stop silently, or send a one-line "Sorry, this
+assistant only answers the Rotocon team" — configurable. No monday call happens for
+non-members.
 
 ### Fetch Items
 Builds the GraphQL query from the validated plan: `items_page(limit: 100)` on
@@ -192,10 +207,10 @@ Machine Overview*, Current Machines group"). If `truncated`, says so.
 
 ### Send Reply
 Gmail node. Replies **in the same thread** (uses the trigger's
-`threadId`/`Message-ID` → `In-Reply-To`/`References`). Plain text or light HTML; v1
-plain text is fine. In Phase 0 it sends from george@ to george@ (no `+ask`), so the
-reply does not match the `to:george+ask@` trigger filter and cannot re-trigger the
-workflow. Phase 1 sends from the `ask@` credential.
+`threadId`/`Message-ID` → `In-Reply-To`/`References`), keeping the `Re: …` subject so
+the thread stays intact. The reply therefore still contains `@ask`, but the `Re:`
+guard above ignores it on the next poll, so it never re-triggers. Plain text or light
+HTML; v1 plain text is fine. Phase 1 sends from the `ask@` credential.
 
 ## Security & safety
 
@@ -223,7 +238,8 @@ workflow. Phase 1 sends from the `ask@` credential.
 1. Build both workflows **inactive**; validate via `n8n_validate_workflow` until clean.
 2. Run `monday-schema-catalog-refresh` once; verify the catalog row covers the known
    boards and that `Europe Machine Overview` columns/labels are present.
-3. Manual-run `monday-email-assistant` against sample inbound emails:
+3. Manual-run `monday-email-assistant` against sample inbound emails (each subject
+   contains `@ask`, e.g. `Întrebare @ask`):
    - *"Câte mașini am în Germania?"* → integer matching a manual board count; reply in RO.
    - *"How many machines are critical?"* → matches Project Status = critical count; reply in EN.
    - *"Wie viele Maschinen sind in Phase FAT?"* → reply in DE.
@@ -231,8 +247,10 @@ workflow. Phase 1 sends from the `ask@` credential.
    - A non-allowlisted sender → no data leaves (refusal or silence per config).
 4. Verify replies thread correctly (land under the original email).
 5. Spot-check 2 counts against the board manually.
-6. All of the above runs in **Phase 0** (trigger on `george+ask@`, reusing the
-   existing Gmail credential, allowlist = george@).
+6. All of the above runs in **Phase 0** (george@ inbox, subject token `@ask`, `Re:`
+   guard, reusing the existing Gmail credential, allowlist = george@). Explicitly
+   confirm the loop guard: after the bot replies, the `Re: … @ask` reply does **not**
+   start a second run.
 7. After sign-off on Phase 0: activate the catalog-refresh schedule and the Gmail
    trigger. Graduating to **Phase 1** (dedicated `ask@` mailbox + expanded allowlist)
    is a credential/recipient-filter swap done separately once the mailbox exists.
