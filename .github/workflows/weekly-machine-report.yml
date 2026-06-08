@@ -16,15 +16,29 @@ jobs:
       proceed: ${{ steps.check.outputs.proceed }}
     steps:
       - id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHED: ${{ github.event.schedule }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Pick the single trigger that corresponds to 08:00 Europe/Berlin,
+          # based on WHICH cron fired (github.event.schedule) and the current
+          # DST offset (+0200 = CEST/summer, +0100 = CET/winter). We deliberately
+          # do NOT test the current Berlin hour: GitHub frequently delays
+          # scheduled runs by 30-90+ min, which would push the hour past 08 and
+          # silently drop the report. The cron-vs-offset match is delay-proof and
+          # still proceeds exactly once per Monday (only one offset is ever active).
+          OFFSET="$(TZ=Europe/Berlin date +%z)"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "Manual dispatch — proceeding."
             echo "proceed=true" >> "$GITHUB_OUTPUT"
-          elif [ "$(TZ=Europe/Berlin date +%H)" = "08" ]; then
-            echo "Berlin local time is 08:xx — proceeding."
+          elif [ "$SCHED" = "0 6 * * 1" ] && [ "$OFFSET" = "+0200" ]; then
+            echo "Summer (CEST): 06:00 UTC = 08:00 Berlin — proceeding."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHED" = "0 7 * * 1" ] && [ "$OFFSET" = "+0100" ]; then
+            echo "Winter (CET): 07:00 UTC = 08:00 Berlin — proceeding."
             echo "proceed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Berlin local hour is $(TZ=Europe/Berlin date +%H), not 08 — skipping this trigger."
+            echo "Trigger '$SCHED' at offset $OFFSET is not the 08:00-Berlin slot — skipping."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
           fi
 
