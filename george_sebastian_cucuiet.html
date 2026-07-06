@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
+  <title>ROTOCON E-Mail Signature</title>
+  <!--[if mso]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <![endif]-->
+  <style type="text/css">
+    /* Reset email-client defaults. */
+    body, table, td, div, p, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+    table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; border-collapse:collapse; }
+    img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+
+    /* Dark-mode override: clients that respect prefers-color-scheme (Apple Mail desktop+iOS,
+       newer iOS Mail, Outlook 365 web) keep a white card and dark text instead of inverting. */
+    @media (prefers-color-scheme: dark) {
+      .rc-card, .rc-card-td { background-color:#ffffff !important; }
+      .rc-text, .rc-text a { color:#403E3D !important; }
+      .rc-muted, .rc-muted a { color:#555555 !important; }
+      .rc-red, .rc-red a { color:#FF0000 !important; }
+      .rc-divider { border-color:#C2BCB2 !important; background-color:#C2BCB2 !important; }
+    }
+    /* Outlook iOS / Android dark-mode override (Microsoft injects [data-ogs*] attrs in dark mode). */
+    [data-ogsc] .rc-text, [data-ogsc] .rc-text a { color:#403E3D !important; }
+    [data-ogsc] .rc-muted, [data-ogsc] .rc-muted a { color:#555555 !important; }
+    [data-ogsc] .rc-red, [data-ogsc] .rc-red a { color:#FF0000 !important; }
+    [data-ogsb] .rc-card, [data-ogsb] .rc-card-td { background-color:#ffffff !important; }
+
+    /* Responsive stack: below 640px the three table cells switch to display:block
+       so they stack vertically, contact aligns left, machine fits viewport.
+       Breakpoint is 640px (not 520) because the card is a 600px table + 2x20px
+       padding = 640px wide: any viewport or compose/reading pane narrower than
+       that clips the right-hand contact column — which holds the e-mail address
+       and postal address. Stacking before that point keeps both fully visible. */
+    @media only screen and (max-width:640px) {
+      .rc-col { display:block !important; width:100% !important; max-width:100% !important; padding:0 !important; }
+      /* Drop the medallion entirely when the signature stacks (narrow clients and
+         the narrow preview iframe). Stacked, it would sit mid-column between the
+         wordmark and the contact block — the "floating in the middle" look. The
+         mobile signature omits the medallion for the same reason; this keeps the
+         narrow desktop view consistent with it. The wide (>640px) layout still
+         shows it, top-aligned beside the name. */
+      .rc-col-mid { display:none !important; }
+      .rc-col-right { padding:14px 0 0 0 !important; }
+      .rc-contact-tbl { margin:0 !important; text-align:left !important; float:none !important; }
+      .rc-medallion { margin:0 auto !important; }
+      .rc-footer-cell { display:block !important; width:100% !important; text-align:left !important; padding:14px 0 0 0 !important; }
+      .rc-machine { max-width:100% !important; height:auto !important; width:auto !important; }
+      .rc-banner { width:100% !important; height:auto !important; }
+    }
+  </style>
+</head>
+<body bgcolor="#ffffff" class="rc-card" style="margin:0;padding:0;background-color:#ffffff;mso-line-height-rule:exactly;">
+
+<!-- White card wrapper — explicit bgcolor attribute + inline background-color so Gmail Android
+     and Outlook mobile don't repaint to black under their forced dark-mode skin. -->
+<!--[if mso]>
+<v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:640px;mso-width-percent:1000;">
+  <v:fill type="solid" color="#ffffff"/>
+  <v:textbox inset="0,0,0,0">
+<![endif]-->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#ffffff" class="rc-card" style="background-color:#ffffff;mso-color-alt:none;max-width:640px;">
+<tr><td bgcolor="#ffffff" align="left" class="rc-card-td" style="padding:20px;background-color:#ffffff;mso-color-alt:none;max-width:640px;">
+
+<!-- 3-COLUMN ROW: name | medallion | contact. Real <table> for ALL clients
+     (not just Outlook Windows via MSO) so Outlook for Mac, Apple Mail, and the
+     Outlook signature-editor preview render the columns side-by-side instead of
+     stacking. table-layout:fixed locks the cell widths against client reflow. -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" bgcolor="#ffffff" style="width:100%;max-width:600px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;table-layout:fixed;">
+  <tr>
+    <!-- LEFT: name, title, wordmark, tagline -->
+    <td class="rc-col" valign="top" width="253" style="width:253px;vertical-align:top;padding-right:8px;font-family:Arial,Helvetica,sans-serif;color:#403E3D;">
+      <div class="rc-text" style="font-family:Arial,Helvetica,sans-serif;font-size:21px;line-height:24px;color:#403E3D;mso-color-alt:none;mso-line-height-rule:exactly;"><span class="rc-red" style="color:#FF0000;mso-color-alt:none;">George Sebastian</span> <span class="rc-text" style="color:#403E3D;mso-color-alt:none;">Cucuiet</span></div>
+      <div class="rc-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:16px;color:#555555;mso-color-alt:none;padding:4px 0 0 0;mso-line-height-rule:exactly;">Head of Digital Transformation</div>
+      <!-- Spacer pushes the wordmark + tagline below the 96px-tall medallion in the middle
+           column so any client that misaligns cells can't render them overlapping.
+           Table-based (not <div>) and zero-width space (not &nbsp;) because Outlook
+           for Mac / Outlook Web ignore font-size:1px on inline non-breaking spaces
+           and render the &nbsp; at the inherited font-size, leaving a visible "|"
+           artifact above the wordmark. Reported in compose-window screenshots
+           2026-05-26 (george). -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr><td height="50" style="height:50px;line-height:0;font-size:0;mso-line-height-rule:exactly;">&#8203;</td></tr></table>
+      <div style="line-height:0;font-size:0;"><a href="https://www.rotocon.world/" style="display:inline-block;line-height:0;text-decoration:none;border:0;"><img src="https://assets.rotocon.world/sig/wordmark.png" width="162" height="26" alt="ROTOCON" border="0" style="display:block;width:162px;height:26px;border:0;outline:none;text-decoration:none;"></a></div>
+      <div class="rc-muted" style="font-family:Arial,Helvetica,sans-serif;padding:7px 0 0 0;font-size:9px;color:#555555;mso-color-alt:none;letter-spacing:1px;mso-line-height-rule:exactly;">USA&nbsp;&nbsp;&bull;&nbsp;&nbsp;Europe&nbsp;&nbsp;&bull;&nbsp;&nbsp;Africa&nbsp;&nbsp;&bull;&nbsp;&nbsp;Asia</div>
+    </td>
+
+    <!-- CENTER: brand symbol. Top-aligned (not vertical-align:middle) so the
+         medallion sits up beside the name/wordmark instead of floating in the
+         vertical centre of the taller contact column. -->
+    <td class="rc-col rc-col-mid" valign="top" align="center" width="78" style="width:78px;vertical-align:top;text-align:center;">
+      <img src="https://assets.rotocon.world/sig/medallion.png" width="78" height="96" alt="ROTOCON" border="0" class="rc-medallion" style="display:block;width:78px;height:96px;border:0;margin:0 auto;outline:none;text-decoration:none;">
+    </td>
+
+    <!-- RIGHT: contact block -->
+    <td class="rc-col rc-col-right" valign="middle" width="247" style="width:247px;vertical-align:middle;padding-left:14px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.7;color:#403E3D;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right" class="rc-contact-tbl" style="text-align:left;">
+        <tr><td class="rc-text" style="padding-bottom:5px;line-height:1.5;white-space:nowrap;font-size:12px;color:#403E3D;mso-color-alt:none;">
+          <span class="rc-muted" style="color:#555555;mso-color-alt:none;">Mobile</span>&nbsp;&nbsp;<a href="tel:+4915155684849" class="rc-text" style="color:#403E3D;mso-color-alt:none;text-decoration:none;">+49 151 55684849</a>
+        </td></tr>
+        <tr><td class="rc-text" style="padding-bottom:5px;line-height:1.5;white-space:nowrap;font-size:12px;color:#403E3D;mso-color-alt:none;">
+          <span class="rc-muted" style="color:#555555;mso-color-alt:none;">E-mail</span>&nbsp;&nbsp;<a href="mailto:george@rotocon.world" class="rc-text" style="color:#403E3D;mso-color-alt:none;text-decoration:none;">george@rotocon.world</a>
+        </td></tr>
+        <tr><td class="rc-red" style="line-height:1.5;white-space:nowrap;font-size:12px;color:#FF0000;mso-color-alt:none;">
+          <a href="https://www.rotocon.world/" class="rc-red" style="color:#FF0000;mso-color-alt:none;text-decoration:none;font-weight:bold;">www.rotocon.world</a>
+        </td></tr>
+        <tr><td class="rc-muted" style="padding-top:12px;font-size:10.5px;color:#555555;mso-color-alt:none;line-height:1.55;">ROTOCON EUROPE GmbH<br>Jacobsrade 71<br>D-22962 Siek, Germany</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- FOOTER divider -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#ffffff" style="width:100%;background-color:#ffffff;margin-top:16px;">
+  <tr><td class="rc-divider" bgcolor="#C2BCB2" style="border-bottom:1px solid #C2BCB2;background-color:#C2BCB2;font-size:1px;line-height:1px;height:1px;">&nbsp;</td></tr>
+</table>
+
+<!-- FOOTER ROW: press image on the left, social icons on the right, same row.
+     Press is sized via MEDIA_MAX_W so they share the ~600px inner area. -->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin-top:14px;">
+  <tr>
+    <td class="rc-footer-cell" align="left" valign="top" style="padding:0;text-align:left;vertical-align:top;">
+      <a href="https://magazine.rotocon.world/" style="text-decoration:none;border:0;"><img src="https://assets.rotocon.world/sig/machine.png" class="rc-machine" width="380" height="146" alt="ROTOCON RFP 460" border="0" style="display:block;height:146px;width:380px;border:0;"></a>
+    </td>
+    <td class="rc-footer-cell" align="right" valign="top" style="padding:30px 0 0 12px;vertical-align:top;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right" style="border-collapse:collapse;">
+        <tr>
+                  <td align="center" valign="middle" style="padding-left:10px;line-height:0;font-size:0;"><a href="https://www.rotocon.world/" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/icon-web.png" width="24" height="24" alt="rotocon.world" border="0" style="display:block;width:24px;height:24px;border:0;outline:none;text-decoration:none;"></a></td>
+                  <td align="center" valign="middle" style="padding-left:10px;line-height:0;font-size:0;"><a href="https://www.linkedin.com/company/rotocon/" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/icon-linkedin.png" width="24" height="24" alt="LinkedIn" border="0" style="display:block;width:24px;height:24px;border:0;outline:none;text-decoration:none;"></a></td>
+                  <td align="center" valign="middle" style="padding-left:10px;line-height:0;font-size:0;"><a href="https://www.youtube.com/@rotoconworld" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/icon-youtube.png" width="29" height="20" alt="YouTube" border="0" style="display:block;width:29px;height:20px;border:0;outline:none;text-decoration:none;"></a></td>
+                  <td align="center" valign="middle" style="padding-left:10px;line-height:0;font-size:0;"><a href="https://www.instagram.com/rotoconworld/" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/icon-instagram.png" width="24" height="24" alt="Instagram" border="0" style="display:block;width:24px;height:24px;border:0;outline:none;text-decoration:none;"></a></td>
+                  <td align="center" valign="middle" style="padding-left:10px;line-height:0;font-size:0;"><a href="https://www.facebook.com/Rotocon/" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/icon-facebook.png" width="13" height="24" alt="Facebook" border="0" style="display:block;width:13px;height:24px;border:0;outline:none;text-decoration:none;"></a></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;margin-top:14px;"><tr><td style="padding:0;line-height:0;font-size:0;"><a href="https://magazine.rotocon.world/" style="text-decoration:none;border:0;line-height:0;"><img src="https://assets.rotocon.world/sig/banner.jpg" class="rc-banner" width="600" height="138" alt="ROTOCON at LOUPE Americas 2026 — Visit us @ Booth 719" border="0" style="display:block;width:600px;height:138px;border:0;outline:none;text-decoration:none;"></a></td></tr></table>
+</td></tr>
+</table>
+<!--[if mso]>
+  </v:textbox>
+</v:rect>
+<![endif]-->
+
+</body>
+</html>
