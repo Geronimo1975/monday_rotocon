@@ -4,7 +4,7 @@
 const OPS = new Set([
   'equals', 'not_equals', 'contains', 'gt', 'gte', 'lt', 'lte', 'is_empty', 'not_empty',
 ]);
-const AGGS = new Set(['count', 'list', 'avg', 'sum', 'group_count']);
+const AGGS = new Set(['count', 'list', 'avg', 'sum', 'group_count', 'recent_activity']);
 
 function validatePlan(plan, catalog) {
   if (!plan || typeof plan !== 'object') {

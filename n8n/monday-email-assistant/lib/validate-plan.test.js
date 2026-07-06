@@ -93,3 +93,12 @@ test('the pseudo-column "name" is always allowed', () => {
     { ...okPlan, filters: [{ column_id: 'name', op: 'contains', value: 'ROT' }] }, CATALOG);
   assert.strictEqual(r.ok, true);
 });
+
+test('recent_activity is an allowed aggregation and needs no columns', () => {
+  const v = validatePlan(
+    { answerable: true, board_id: 1, aggregation: 'recent_activity', filters: [] },
+    { boards: { 1: { id: '1', name: 'B', columns: {} } } },
+  );
+  assert.equal(v.ok, true);
+  assert.deepEqual(v.errors, []);
+});

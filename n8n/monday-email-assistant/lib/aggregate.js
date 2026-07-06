@@ -77,4 +77,37 @@ function aggregate(items, plan) {
   return out;
 }
 
-module.exports = { normalizeItem, cellText, matchFilter, aggregate };
+// Board updates (activity log) → compact rows for the phrase LLM. Deterministic:
+// window filter + cap happen here, never in the LLM. `nowMs` is a parameter so
+// tests control the clock.
+const ACTIVITY_CAP = 30;
+const ACTIVITY_DEFAULT_DAYS = 7;
+const ACTIVITY_MAX_DAYS = 90;
+
+function aggregateActivity(updates, plan, nowMs) {
+  const days = Math.min(
+    Math.max(parseInt(plan.activity_days, 10) || ACTIVITY_DEFAULT_DAYS, 1),
+    ACTIVITY_MAX_DAYS,
+  );
+  const cutoff = nowMs - days * 86400000;
+  const all = Array.isArray(updates) ? updates : [];
+  const recent = all.filter((u) => {
+    const t = Date.parse(u && u.created_at);
+    return !isNaN(t) && t >= cutoff;
+  });
+  const out = {
+    aggregation: 'recent_activity',
+    days,
+    matched: recent.length,
+    scanned: all.length,
+    truncated: recent.length > ACTIVITY_CAP,
+  };
+  out.updates = recent.slice(0, ACTIVITY_CAP).map((u) => ({
+    when: String(u.created_at || '').slice(0, 16).replace('T', ' '),
+    who: (u.creator && u.creator.name) || '(unknown)',
+    text: String(u.text_body || '').replace(/\s+/g, ' ').trim().slice(0, 200),
+  }));
+  return out;
+}
+
+module.exports = { normalizeItem, cellText, matchFilter, aggregate, aggregateActivity };

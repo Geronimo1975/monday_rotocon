@@ -153,3 +153,53 @@ test('matchFilter: contains', () => {
   assert.strictEqual(
     matchFilter(rot200, { column_id: 'name', op: 'contains', value: 'xyz' }), false);
 });
+
+// --- recent_activity ---------------------------------------------------------
+const { aggregateActivity } = require('./aggregate.js');
+
+test('recent_activity keeps only updates inside the window', () => {
+  const now = Date.parse('2026-07-06T08:00:00Z');
+  const updates = [
+    { created_at: '2026-07-05T10:00:00Z', text_body: 'FAT done', creator: { name: 'Viktor' } },
+    { created_at: '2026-06-20T10:00:00Z', text_body: 'old note', creator: { name: 'Metin' } },
+  ];
+  const out = aggregateActivity(updates, { aggregation: 'recent_activity' }, now);
+  assert.equal(out.matched, 1);
+  assert.equal(out.scanned, 2);
+  assert.equal(out.days, 7);
+  assert.equal(out.updates[0].who, 'Viktor');
+  assert.equal(out.updates[0].text, 'FAT done');
+});
+
+test('recent_activity honours activity_days and clamps to 1..90', () => {
+  const now = Date.parse('2026-07-06T08:00:00Z');
+  const updates = [{ created_at: '2026-06-20T10:00:00Z', text_body: 'x', creator: { name: 'M' } }];
+  assert.equal(aggregateActivity(updates, { activity_days: 30 }, now).matched, 1);
+  assert.equal(aggregateActivity(updates, { activity_days: 500 }, now).days, 90);
+  assert.equal(aggregateActivity(updates, { activity_days: -3 }, now).days, 1);
+  assert.equal(aggregateActivity(updates, {}, now).days, 7);
+});
+
+test('recent_activity caps rows and flags truncation', () => {
+  const now = Date.parse('2026-07-06T08:00:00Z');
+  const updates = Array.from({ length: 40 }, (_, i) => ({
+    created_at: '2026-07-05T10:00:00Z', text_body: 'u' + i, creator: { name: 'G' },
+  }));
+  const out = aggregateActivity(updates, {}, now);
+  assert.equal(out.matched, 40);
+  assert.equal(out.updates.length, 30);
+  assert.equal(out.truncated, true);
+});
+
+test('recent_activity survives missing creator, body and bad dates', () => {
+  const now = Date.parse('2026-07-06T08:00:00Z');
+  const updates = [
+    { created_at: '2026-07-05T10:00:00Z' },
+    { created_at: 'not-a-date', text_body: 'x' },
+    null,
+  ];
+  const out = aggregateActivity(updates, {}, now);
+  assert.equal(out.matched, 1);
+  assert.equal(out.updates[0].who, '(unknown)');
+  assert.equal(out.updates[0].text, '');
+});
